@@ -149,7 +149,7 @@ export const dataService = {
         team2:league_teams!team2_id(team_name)
       `)
       .eq('league_category_id', categoryId)
-      .in('status', ['pendiente', 'scheduled', 'pending']) // Removed 'programado' as it caused an error
+      .in('status', ['pendiente', 'programado']) // Restricted to values that likely exist in the enum
       .order('round', { ascending: true })
       .limit(20);
     
@@ -203,7 +203,7 @@ export const dataService = {
         team2:league_teams!team2_id(team_name)
       `)
       .eq('league_category_id', categoryId)
-      .in('status', ['jugado', 'walkover', 'w.o.']) // Removed 'played' as it caused an error
+      .in('status', ['jugado', 'walkover']) // Removed 'w.o.' as it causes enum mismatch error in Supabase
       .order('round', { ascending: false });
     
     if (groupId) {
