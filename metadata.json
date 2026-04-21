@@ -1,0 +1,6 @@
+{
+  "name": "Liga Pro Consulta",
+  "description": "App pública de consulta para jugadores: partidos, resultados y posiciones de la temporada activa.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
