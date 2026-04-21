@@ -1,4 +1,4 @@
-# 🎾 Liga Pro Consulta | Vibe Events
+# 🎾 VIBE Sport by Netxtrust 2026
 
 ![Vibe Events Logo](https://hoijgdljilujhsxeojvk.supabase.co/storage/v1/object/public/assets/vibe-logo.png) <!-- Note: User should update this path if they host the image -->
 

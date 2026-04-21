@@ -173,10 +173,10 @@ function AppContent({
           <div className="flex items-center justify-between mb-4">
             <div className="flex flex-col">
               <h1 className="text-primary font-black text-xl tracking-tighter leading-none">
-                LIGA PRO
+                VIBE SPORT
               </h1>
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
-                {season?.name || 'Temporada Actual'}
+                by Netxtrust 2026
               </span>
             </div>
             <div className="w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center border border-slate-100">
