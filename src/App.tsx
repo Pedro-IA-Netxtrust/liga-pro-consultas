@@ -24,10 +24,7 @@ const formatTeamName = (name: string) => {
   if (!name) return '';
   return name
     .split('/')
-    .map(part => {
-      const names = part.trim().split(/\s+/);
-      return names.slice(0, 2).join(' '); // Take first name and first surname
-    })
+    .map(part => part.trim())
     .join(' / ');
 };
 
