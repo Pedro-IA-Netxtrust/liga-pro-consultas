@@ -19,6 +19,18 @@ import {
   LeagueSeason
 } from './types';
 
+// Helper to format team names: "Hidalgo Rodríguez / Astudillo" -> "Hidalgo/Astudillo"
+const formatTeamName = (name: string) => {
+  if (!name) return '';
+  return name
+    .split('/')
+    .map(part => {
+      const names = part.trim().split(/\s+/);
+      return names[0]; // Take the first surname/name
+    })
+    .join('/');
+};
+
 // --- Components ---
 
 const Badge = ({ children, className = "" }: { children: React.ReactNode, className?: string }) => (
@@ -307,7 +319,7 @@ function AppContent({
                       {standings.length > 0 ? standings.map((row: any, idx: number) => (
                         <div key={row.id} className="grid grid-cols-[32px_1fr_40px_40px] gap-2 px-4 py-4 items-center hover:bg-slate-50/50 transition-colors">
                           <span className="text-xs font-black text-slate-300">{idx + 1}</span>
-                          <span className="text-sm font-bold text-slate-800 leading-tight truncate pr-2">{row.team_name}</span>
+                          <span className="text-sm font-bold text-slate-800 leading-tight truncate pr-2">{formatTeamName(row.team_name)}</span>
                           <span className="text-xs font-bold text-slate-500 text-center">{row.played}</span>
                           <span className="text-sm font-black text-primary text-center">{row.points}</span>
                         </div>
@@ -376,7 +388,7 @@ function MatchCard({ match }: { match: LeagueMatch }) {
           <div className="flex items-center gap-3 overflow-hidden">
             <div className={`w-1 h-8 rounded-full ${isFinished && match.team1_sets > match.team2_sets ? 'bg-primary' : 'bg-slate-100'}`} />
             <span className={`text-sm font-bold truncate ${isFinished && match.team1_sets < match.team2_sets ? 'text-slate-400' : 'text-slate-800'}`}>
-              {match.team1_name}
+              {formatTeamName(match.team1_name)}
             </span>
           </div>
           <div className="flex items-center gap-4">
@@ -407,7 +419,7 @@ function MatchCard({ match }: { match: LeagueMatch }) {
           <div className="flex items-center gap-3 overflow-hidden">
             <div className={`w-1 h-8 rounded-full ${isFinished && match.team2_sets > match.team1_sets ? 'bg-primary' : 'bg-slate-100'}`} />
             <span className={`text-sm font-bold truncate ${isFinished && match.team2_sets < match.team1_sets ? 'text-slate-400' : 'text-slate-800'}`}>
-              {match.team2_name}
+              {formatTeamName(match.team2_name)}
             </span>
           </div>
           <div className="flex items-center gap-4">
