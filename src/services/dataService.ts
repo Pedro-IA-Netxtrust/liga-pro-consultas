@@ -15,6 +15,20 @@ const hasAuth = (env.VITE_SUPABASE_ANON_KEY && env.VITE_SUPABASE_ANON_KEY !== 'p
 
 const useMockData = isMock || !hasAuth;
 
+// Helper to construct team name from player objects (clients table)
+const formatTeamFromData = (team: any) => {
+  if (!team) return 'Pareja';
+  if (team.is_ghost) return team.team_name || 'Pareja Fantasma';
+  
+  // Player 1 (first_name and last_name from clients join)
+  const p1 = team.p1 ? `${team.p1.first_name} ${team.p1.last_name}` : null;
+  // Player 2
+  const p2 = team.p2 ? `${team.p2.first_name} ${team.p2.last_name}` : null;
+  
+  if (p1 && p2) return `${p1} / ${p2}`;
+  return p1 || p2 || team.team_name || 'Pareja';
+};
+
 export const dataService = {
   async getActiveSeason(): Promise<LeagueSeason | null> {
     if (useMockData) {
@@ -23,7 +37,6 @@ export const dataService = {
     }
     
     console.log('Attempting to fetch active season from Supabase...');
-    // Explicitly using the user's schema where status='activa' indicates the current season
     let { data, error } = await supabase
       .from('league_seasons')
       .select('*')
@@ -48,7 +61,6 @@ export const dataService = {
     }
     
     console.log('Season resolved successfully:', data?.name);
-    // Map status='activa' to the UI's expected is_active boolean
     return {
       ...data,
       is_active: data.status === 'activa'
@@ -69,12 +81,10 @@ export const dataService = {
       .from('league_categories')
       .select('id, name, modality, status, league_season_id')
       .eq('league_season_id', seasonId)
-      // Accept 'activa' status or no status (defaulting to active)
       .or('status.eq.activa,status.is.null');
     
     if (error) {
       console.error('Supabase Error (getActiveCategories):', error.message);
-      // Fallback: try fetching all for this season if filter fails
       const { data: allData, error: allError } = await supabase
         .from('league_categories')
         .select('id, name, modality, status, league_season_id')
@@ -83,7 +93,6 @@ export const dataService = {
       if (allError) return [];
       return (allData || []).map(c => ({...c, season_id: c.league_season_id}));
     }
-    console.log('Categories fetched:', data?.length || 0);
     return (data || []).map(c => ({...c, season_id: c.league_season_id}));
   },
 
@@ -102,7 +111,6 @@ export const dataService = {
     
     if (error) {
        console.error('Supabase Error (getGroupsByCategory):', error.message);
-       // Fallback for different column naming
        const { data: altData } = await supabase
         .from('league_groups')
         .select('*')
@@ -128,28 +136,30 @@ export const dataService = {
     if (useMockData) {
       return [
         { 
-          id: 'm1', round: 1, team1_name: 'Pérez/García', team2_name: 'Rodríguez/López', 
+          id: 'm1', round: 1, team1_name: 'Pérez / García', team2_name: 'Rodríguez / López', 
           status: 'pendiente', team1_sets: 0, team2_sets: 0, team1_games: 0, team2_games: 0,
           league_category_id: categoryId, league_group_id: groupId, team1_id: 't1', team2_id: 't2'
-        },
-        { 
-          id: 'm2', round: 1, team1_name: 'Sánchez/Díaz', team2_name: 'Martínez/Ruiz', 
-          status: 'pendiente', team1_sets: 0, team2_sets: 0, team1_games: 0, team2_games: 0,
-          league_category_id: categoryId, league_group_id: groupId, team1_id: 't3', team2_id: 't4'
         },
       ];
     }
     
-    // Fetch with joins to get team names
     let query = supabase
       .from('league_matches')
       .select(`
         *,
-        team1:league_teams!team1_id(team_name),
-        team2:league_teams!team2_id(team_name)
+        team1:league_teams!team1_id(
+          id, team_name, is_ghost,
+          p1:clients!player1_id(first_name, last_name),
+          p2:clients!player2_id(first_name, last_name)
+        ),
+        team2:league_teams!team2_id(
+          id, team_name, is_ghost,
+          p1:clients!player1_id(first_name, last_name),
+          p2:clients!player2_id(first_name, last_name)
+        )
       `)
       .eq('league_category_id', categoryId)
-      .in('status', ['pendiente', 'programado']) // Restricted to values that likely exist in the enum
+      .in('status', ['pendiente', 'programado'])
       .order('round', { ascending: true })
       .limit(20);
     
@@ -162,10 +172,13 @@ export const dataService = {
 
     if (error) {
       console.error('Supabase Error (getUpcomingMatches):', error.message);
-      // Fallback: If 'pendiente' is the only safe one
       const { data: retryData } = await supabase
         .from('league_matches')
-        .select(`*, team1:league_teams!team1_id(team_name), team2:league_teams!team2_id(team_name)`)
+        .select(`
+          *,
+          team1:league_teams!team1_id(id, team_name, is_ghost, p1:clients!player1_id(first_name, last_name), p2:clients!player2_id(first_name, last_name)),
+          team2:league_teams!team2_id(id, team_name, is_ghost, p1:clients!player1_id(first_name, last_name), p2:clients!player2_id(first_name, last_name))
+        `)
         .eq('league_category_id', categoryId)
         .eq('status', 'pendiente');
       
@@ -174,8 +187,8 @@ export const dataService = {
 
     return (finalData || []).map((m: any) => ({
       ...m,
-      team1_name: m.team1?.team_name || 'Pareja 1',
-      team2_name: m.team2?.team_name || 'Pareja 2'
+      team1_name: formatTeamFromData(m.team1),
+      team2_name: formatTeamFromData(m.team2)
     }));
   },
 
@@ -183,14 +196,9 @@ export const dataService = {
     if (useMockData) {
       return [
         { 
-          id: 'r1', round: 2, team1_name: 'Gómez/Mora', team2_name: 'Vidal/Sol', 
+          id: 'r1', round: 2, team1_name: 'Gómez / Mora', team2_name: 'Vidal / Sol', 
           status: 'jugado', team1_sets: 2, team2_sets: 1, team1_games: 12, team2_games: 8,
           league_category_id: categoryId, league_group_id: groupId, team1_id: 't5', team2_id: 't6'
-        },
-        { 
-          id: 'r2', round: 2, team1_name: 'Blanco/Ortega', team2_name: 'Marín/Castro', 
-          status: 'walkover', team1_sets: 2, team2_sets: 0, team1_games: 12, team2_games: 0,
-          league_category_id: categoryId, league_group_id: groupId, team1_id: 't7', team2_id: 't8'
         },
       ];
     }
@@ -199,11 +207,19 @@ export const dataService = {
       .from('league_matches')
       .select(`
         *,
-        team1:league_teams!team1_id(team_name),
-        team2:league_teams!team2_id(team_name)
+        team1:league_teams!team1_id(
+          id, team_name, is_ghost,
+          p1:clients!player1_id(first_name, last_name),
+          p2:clients!player2_id(first_name, last_name)
+        ),
+        team2:league_teams!team2_id(
+          id, team_name, is_ghost,
+          p1:clients!player1_id(first_name, last_name),
+          p2:clients!player2_id(first_name, last_name)
+        )
       `)
       .eq('league_category_id', categoryId)
-      .in('status', ['jugado', 'walkover']) // Removed 'w.o.' as it causes enum mismatch error in Supabase
+      .in('status', ['jugado', 'walkover'])
       .order('round', { ascending: false });
     
     if (groupId) {
@@ -215,10 +231,13 @@ export const dataService = {
 
     if (error) {
       console.error('Supabase Error (getResults):', error.message);
-      // Fallback: Use 'jugado' which is more likely to be in the enum
       const { data: retryData } = await supabase
         .from('league_matches')
-        .select(`*, team1:league_teams!team1_id(team_name), team2:league_teams!team2_id(team_name)`)
+        .select(`
+          *,
+          team1:league_teams!team1_id(id, team_name, is_ghost, p1:clients!player1_id(first_name, last_name), p2:clients!player2_id(first_name, last_name)),
+          team2:league_teams!team2_id(id, team_name, is_ghost, p1:clients!player1_id(first_name, last_name), p2:clients!player2_id(first_name, last_name))
+        `)
         .eq('league_category_id', categoryId)
         .eq('status', 'jugado');
         
@@ -227,8 +246,8 @@ export const dataService = {
 
     return (finalData || []).map((m: any) => ({
       ...m,
-      team1_name: m.team1?.team_name || 'Pareja 1',
-      team2_name: m.team2?.team_name || 'Pareja 2'
+      team1_name: formatTeamFromData(m.team1),
+      team2_name: formatTeamFromData(m.team2)
     }));
   },
 
@@ -236,19 +255,13 @@ export const dataService = {
     if (useMockData) {
       return [
         { 
-          id: 's1', group_id: groupId, team_id: 't1', team_name: 'Pérez/García', 
+          id: 's1', group_id: groupId, team_id: 't1', team_name: 'Pérez / García', 
           played: 3, won: 3, lost: 0, points: 9, sets_for: 6, sets_against: 1, 
           games_for: 36, games_against: 20 
-        },
-        { 
-          id: 's2', group_id: groupId, team_id: 't2', team_name: 'Rodríguez/López', 
-          played: 3, won: 2, lost: 1, points: 6, sets_for: 5, sets_against: 2, 
-          games_for: 34, games_against: 25 
         },
       ];
     }
 
-    // Attempting to fetch from league_standings first (common view name)
     const { data: standings, error: standingsError } = await supabase
       .from('league_standings')
       .select('*')
@@ -259,7 +272,6 @@ export const dataService = {
       return standings;
     }
 
-    // Fallback: If no standings source exists, fetch teams assigned to the group
     console.log('Fetching teams from league_group_teams for group:', groupId);
     const { data, error } = await supabase
       .from('league_group_teams')
@@ -268,7 +280,10 @@ export const dataService = {
         position,
         team:league_teams!league_team_id (
           id,
-          team_name
+          team_name,
+          is_ghost,
+          p1:clients!player1_id (first_name, last_name),
+          p2:clients!player2_id (first_name, last_name)
         )
       `)
       .eq('league_group_id', groupId)
@@ -279,12 +294,11 @@ export const dataService = {
       return [];
     }
 
-    // Map to LeagueStanding structure (with 0 stats if not calculated)
     return (data || []).map((item: any) => ({
       id: item.id,
       group_id: groupId,
       team_id: item.team?.id || '',
-      team_name: item.team?.team_name || 'Sin nombre',
+      team_name: formatTeamFromData(item.team),
       played: 0,
       won: 0,
       lost: 0,
