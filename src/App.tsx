@@ -361,31 +361,91 @@ function AppContent({
               >
                 {activeTab === 'upcoming' && (
                   <>
-                    {upcoming.filter(m => selectedRound === 'all' || m.round === selectedRound).length > 0 ? 
-                      upcoming
-                        .filter(m => selectedRound === 'all' || m.round === selectedRound)
-                        .map((match: LeagueMatch) => (
-                      <div key={match.id}>
-                        <MatchCard match={match} />
-                      </div>
-                    )) : (
-                      <EmptyState label="Sin partidos próximos." />
-                    )}
+                    {(() => {
+                      const filteredMatches = upcoming.filter(m => selectedRound === 'all' || m.round === selectedRound);
+                      if (filteredMatches.length === 0) return <EmptyState label="Sin partidos próximos." />;
+                      
+                      const groupedIds = Array.from(new Set(
+                        filteredMatches
+                          .sort((a, b) => {
+                            const nameA = a.group_name || '';
+                            const nameB = b.group_name || '';
+                            if (nameA !== nameB) return nameA.localeCompare(nameB);
+                            return (a.phase || 0) - (b.phase || 0);
+                          })
+                          .map(m => m.league_group_id || 'general')
+                      ));
+
+                      return (
+                        <div className="space-y-8">
+                          {groupedIds.map(groupId => {
+                            const groupMatches = filteredMatches.filter(m => (m.league_group_id || 'general') === groupId);
+                            const groupName = groupMatches[0]?.group_name || 'General';
+                            const phaseNum = groupMatches[0]?.phase;
+                            
+                            return (
+                              <div key={groupId} className="space-y-3">
+                                {groupedIds.length > 1 && (
+                                  <h3 className="text-[11px] font-black text-slate-500 uppercase tracking-wider px-2">
+                                    {groupName} {phaseNum ? `• Fase ${phaseNum}` : ''}
+                                  </h3>
+                                )}
+                                <div className="space-y-4">
+                                  {groupMatches.map(match => (
+                                    <MatchCard key={match.id} match={match} />
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
                   </>
                 )}
 
                 {activeTab === 'results' && (
                   <>
-                    {results.filter(m => selectedRound === 'all' || m.round === selectedRound).length > 0 ? 
-                      results
-                        .filter(m => selectedRound === 'all' || m.round === selectedRound)
-                        .map((match: LeagueMatch) => (
-                      <div key={match.id}>
-                        <MatchCard match={match} />
-                      </div>
-                    )) : (
-                      <EmptyState label="Sin resultados aún." />
-                    )}
+                    {(() => {
+                      const filteredMatches = results.filter(m => selectedRound === 'all' || m.round === selectedRound);
+                      if (filteredMatches.length === 0) return <EmptyState label="Sin resultados aún." />;
+                      
+                      const groupedIds = Array.from(new Set(
+                        filteredMatches
+                          .sort((a, b) => {
+                            const nameA = a.group_name || '';
+                            const nameB = b.group_name || '';
+                            if (nameA !== nameB) return nameA.localeCompare(nameB);
+                            return (a.phase || 0) - (b.phase || 0);
+                          })
+                          .map(m => m.league_group_id || 'general')
+                      ));
+
+                      return (
+                        <div className="space-y-8">
+                          {groupedIds.map(groupId => {
+                            const groupMatches = filteredMatches.filter(m => (m.league_group_id || 'general') === groupId);
+                            const groupName = groupMatches[0]?.group_name || 'General';
+                            const phaseNum = groupMatches[0]?.phase;
+                            
+                            return (
+                              <div key={groupId} className="space-y-3">
+                                {groupedIds.length > 1 && (
+                                  <h3 className="text-[11px] font-black text-slate-500 uppercase tracking-wider px-2">
+                                    {groupName} {phaseNum ? `• Fase ${phaseNum}` : ''}
+                                  </h3>
+                                )}
+                                <div className="space-y-4">
+                                  {groupMatches.map(match => (
+                                    <MatchCard key={match.id} match={match} />
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
                   </>
                 )}
 
@@ -472,6 +532,21 @@ function AppContent({
                         <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Sin posiciones disponibles</p>
                       </div>
                     )}
+                    
+                    {standings.length > 0 && (
+                      <div className="mt-6 px-4 py-4 bg-slate-50/50 rounded-2xl border border-slate-100 text-[10px] text-slate-500 leading-relaxed grid grid-cols-2 gap-x-4 gap-y-1">
+                        <p><strong className="text-slate-700">PJ:</strong> Partidos Jugados.</p>
+                        <p><strong className="text-slate-700">PG:</strong> Partidos Ganados.</p>
+                        <p><strong className="text-slate-700">PP:</strong> Partidos Perdidos.</p>
+                        <p><strong className="text-slate-700">SF:</strong> Set a Favor.</p>
+                        <p><strong className="text-slate-700">SC:</strong> Set en Contra.</p>
+                        <p><strong className="text-slate-700">DS:</strong> Diferencia de Set.</p>
+                        <p><strong className="text-slate-700">GF:</strong> Game a Favor.</p>
+                        <p><strong className="text-slate-700">GC:</strong> Game en Contra.</p>
+                        <p><strong className="text-slate-700">DG:</strong> Diferencia de Game.</p>
+                        <p><strong className="text-slate-700">PTS:</strong> Puntos.</p>
+                      </div>
+                    )}
                   </div>
                 )}
               </motion.div>
@@ -514,11 +589,20 @@ function MatchCard({ match }: { match: LeagueMatch }) {
             {match.group_name && (
               <Badge className="bg-primary/10 text-primary border border-primary/20">{match.group_name}</Badge>
             )}
+            {match.court && (
+              <Badge className="bg-emerald-100 text-emerald-700 border border-emerald-200">Cancha {match.court}</Badge>
+            )}
           </div>
           {match.match_date && (
-            <span className="text-[10px] font-bold text-slate-400 uppercase flex items-center gap-1">
-              <Calendar size={12} />
-              {match.match_date} {match.match_time?.substring(0, 5)}
+            <span className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1.5 mt-1">
+              <Calendar size={12} className="text-slate-400" />
+              {match.match_date} 
+              {match.match_time && (
+                <>
+                  <span className="text-slate-300 mx-0.5">•</span> 
+                  {match.match_time.substring(0, 5)}
+                </>
+              )}
             </span>
           )}
         </div>

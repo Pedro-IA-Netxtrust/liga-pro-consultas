@@ -161,6 +161,8 @@ export const dataService = {
       `)
       .eq('league_category_id', categoryId)
       .in('status', ['pendiente', 'programado'])
+      .order('match_date', { ascending: true, nullsFirst: false })
+      .order('match_time', { ascending: true, nullsFirst: false })
       .order('round', { ascending: true });
     
     if (groupId) {
@@ -277,38 +279,63 @@ export const dataService = {
     if (phase) groupsQuery = groupsQuery.eq('phase', phase);
 
     const { data: groups, error: groupsError } = await groupsQuery;
-    if (groupsError || !groups) return [];
+    
+    // If we have groups, fetch teams via league_group_teams
+    // If NO groups, fetch teams directly from league_teams
+    let groupTeams: any[] = [];
+    const groupIds = (groups || []).map(g => g.id);
 
-    const groupIds = groups.map(g => g.id);
-
-    // 2. Get all teams assigned to these groups
-    const { data: groupTeams, error: teamsError } = await supabase
-      .from('league_group_teams')
-      .select(`
-        league_group_id,
-        team:league_teams!league_team_id (
+    if (groupIds.length > 0) {
+      const { data: gtData } = await supabase
+        .from('league_group_teams')
+        .select(`
+          league_group_id,
+          team:league_teams!league_team_id (
+            id, team_name, is_ghost,
+            p1:clients!player1_id (first_name, last_name),
+            p2:clients!player2_id (first_name, last_name)
+          )
+        `)
+        .in('league_group_id', groupIds);
+      groupTeams = gtData || [];
+    } else {
+      const { data: tData } = await supabase
+        .from('league_teams')
+        .select(`
           id, team_name, is_ghost,
           p1:clients!player1_id (first_name, last_name),
           p2:clients!player2_id (first_name, last_name)
-        )
-      `)
-      .in('league_group_id', groupIds);
+        `)
+        .eq('league_category_id', categoryId);
+      
+      groupTeams = (tData || []).map(t => ({
+        league_group_id: null,
+        team: t
+      }));
+    }
 
-    if (teamsError || !groupTeams) return [];
+    if (groupTeams.length === 0) return [];
 
-    // 3. Get existing standings for these groups
-    const { data: standingsData, error: standingsError } = await supabase
-      .from('league_standings')
-      .select('*')
-      .in('league_group_id', groupIds);
+    // 3. Get existing standings for these groups (or category if no groups)
+    let standingsQuery = supabase.from('league_standings').select('*');
+    if (groupIds.length > 0) {
+      standingsQuery = standingsQuery.in('league_group_id', groupIds);
+    } else {
+      standingsQuery = standingsQuery.eq('league_category_id', categoryId);
+    }
+    
+    const { data: standingsData } = await standingsQuery;
 
     // 4. Merge data: Every team in groupTeams should have a row
     const mergedStandings: any[] = groupTeams.map(gt => {
-      const standing = (standingsData || []).find(s => s.league_team_id === gt.team?.id && s.league_group_id === gt.league_group_id);
-      const group = groups.find(g => g.id === gt.league_group_id);
+      const standing = (standingsData || []).find(s => 
+        s.league_team_id === gt.team?.id && 
+        (groupIds.length > 0 ? s.league_group_id === gt.league_group_id : true)
+      );
+      const group = groups ? groups.find(g => g.id === gt.league_group_id) : undefined;
       
       return {
-        id: standing?.id || `${gt.league_group_id}-${gt.team?.id}`,
+        id: standing?.id || `${gt.league_group_id || 'general'}-${gt.team?.id}`,
         group_id: gt.league_group_id,
         group_name: group?.group_name,
         phase: group?.phase,
