@@ -533,19 +533,6 @@ function AppContent({
                       </div>
                     )}
                     
-                    {standings.length > 0 && (
-                      <div className="mt-6 px-4 py-4 bg-slate-50/50 rounded-2xl border border-slate-100 text-[10px] text-slate-500 leading-relaxed grid grid-cols-2 gap-x-4 gap-y-1">
-                        <p><strong className="text-slate-700">PJ:</strong> Partidos Jugados.</p>
-                        <p><strong className="text-slate-700">PG:</strong> Partidos Ganados.</p>
-                        <p><strong className="text-slate-700">PP:</strong> Partidos Perdidos.</p>
-                        <p><strong className="text-slate-700">SF:</strong> Set a Favor.</p>
-                        <p><strong className="text-slate-700">SC:</strong> Set en Contra.</p>
-                        <p><strong className="text-slate-700">DS:</strong> Diferencia de Set.</p>
-                        <p><strong className="text-slate-700">GF:</strong> Game a Favor.</p>
-                        <p><strong className="text-slate-700">GC:</strong> Game en Contra.</p>
-                        <p><strong className="text-slate-700">DG:</strong> Diferencia de Game.</p>
-                        <p><strong className="text-slate-700">PTS:</strong> Puntos.</p>
-                      </div>
                     )}
                   </div>
                 )}
@@ -580,6 +567,12 @@ function MatchCard({ match }: { match: LeagueMatch }) {
   const isWalkover = ['walkover', 'w.o.'].includes(match.status.toLowerCase());
   const hasSets = match.s1_t1 !== undefined && match.s1_t1 !== null;
 
+  // Custom display status logic
+  let displayStatus = match.status;
+  if (match.status.toLowerCase() === 'pendiente' && (match.match_date || match.match_time || match.court)) {
+    displayStatus = 'programado';
+  }
+
   return (
     <div className="border border-slate-200 rounded-2xl p-4 bg-white shadow-sm hover:shadow-md transition-shadow">
       <div className="flex items-center justify-between mb-4 border-b border-slate-50 pb-2">
@@ -608,9 +601,10 @@ function MatchCard({ match }: { match: LeagueMatch }) {
         </div>
         <span className={`text-[10px] font-black uppercase tracking-widest ${
           isWalkover ? 'text-rose-500' : 
-          isFinished ? 'text-primary' : 'text-amber-500'
+          isFinished ? 'text-primary' : 
+          displayStatus.toLowerCase() === 'programado' ? 'text-emerald-500' : 'text-amber-500'
         }`}>
-          {match.status}
+          {displayStatus}
         </span>
       </div>
 
