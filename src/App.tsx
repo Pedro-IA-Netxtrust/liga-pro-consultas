@@ -544,7 +544,6 @@ function AppContent({
                       </div>
                     )}
                     
-                    )}
                   </div>
                 )}
               </motion.div>
@@ -573,7 +572,7 @@ function TabButton({ active, onClick, label }: { active: boolean, onClick: () =>
   );
 }
 
-function MatchCard({ match }: { match: LeagueMatch }) {
+function MatchCard({ match }: { match: LeagueMatch, key?: any }) {
   const isFinished = ['jugado', 'finalizado', 'played', 'walkover', 'w.o.'].includes(match.status.toLowerCase());
   const isWalkover = ['walkover', 'w.o.'].includes(match.status.toLowerCase());
   const hasSets = match.s1_t1 !== undefined && match.s1_t1 !== null;
