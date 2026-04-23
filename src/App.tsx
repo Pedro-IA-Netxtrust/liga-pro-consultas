@@ -98,7 +98,12 @@ export default function App() {
     setPhases(filters.phases);
     setRounds(filters.rounds);
     
-    await loadDetailData(cat.id);
+    if (grps.length > 0) {
+      setSelectedGroup(grps[0]);
+      await loadDetailData(cat.id, grps[0].id);
+    } else {
+      await loadDetailData(cat.id);
+    }
   };
 
   const handleSelectGroup = async (group: LeagueGroup) => {
@@ -269,7 +274,12 @@ function AppContent({
                     onChange={(e) => {
                       if (e.target.value === "all") {
                         setSelectedGroup(null);
-                        loadDetailData(selectedCategory.id);
+                        loadDetailData(
+                          selectedCategory.id, 
+                          undefined,
+                          selectedPhase === 'all' ? undefined : selectedPhase,
+                          selectedRound === 'all' ? undefined : selectedRound
+                        );
                       } else {
                         const grp = groups.find((g: any) => g.id === e.target.value);
                         if (grp) handleSelectGroup(grp);
