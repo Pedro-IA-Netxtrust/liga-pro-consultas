@@ -156,12 +156,12 @@ export const dataService = {
           id, team_name, is_ghost,
           p1:clients!player1_id(first_name, last_name),
           p2:clients!player2_id(first_name, last_name)
-        )
+        ),
+        group:league_groups!league_group_id(id, group_name, phase)
       `)
       .eq('league_category_id', categoryId)
       .in('status', ['pendiente', 'programado'])
-      .order('round', { ascending: true })
-      .limit(20);
+      .order('round', { ascending: true });
     
     if (groupId) {
       query = query.eq('league_group_id', groupId);
@@ -188,7 +188,9 @@ export const dataService = {
     return (finalData || []).map((m: any) => ({
       ...m,
       team1_name: formatTeamFromData(m.team1),
-      team2_name: formatTeamFromData(m.team2)
+      team2_name: formatTeamFromData(m.team2),
+      group_name: m.group?.group_name,
+      phase: m.group?.phase || m.phase
     }));
   },
 
@@ -216,7 +218,8 @@ export const dataService = {
           id, team_name, is_ghost,
           p1:clients!player1_id(first_name, last_name),
           p2:clients!player2_id(first_name, last_name)
-        )
+        ),
+        group:league_groups!league_group_id(id, group_name, phase)
       `)
       .eq('league_category_id', categoryId)
       .in('status', ['jugado', 'walkover'])
@@ -247,66 +250,100 @@ export const dataService = {
     return (finalData || []).map((m: any) => ({
       ...m,
       team1_name: formatTeamFromData(m.team1),
-      team2_name: formatTeamFromData(m.team2)
+      team2_name: formatTeamFromData(m.team2),
+      group_name: m.group?.group_name,
+      phase: m.group?.phase || m.phase
     }));
   },
 
-  async getStandings(groupId: string): Promise<LeagueStanding[]> {
+  async getStandings(categoryId: string, groupId?: string, phase?: number): Promise<LeagueStanding[]> {
     if (useMockData) {
       return [
         { 
-          id: 's1', group_id: groupId, team_id: 't1', team_name: 'Pérez / García', 
+          id: 's1', group_id: groupId || 'g1', team_id: 't1', team_name: 'Pérez / García', 
           played: 3, won: 3, lost: 0, points: 9, sets_for: 6, sets_against: 1, 
           games_for: 36, games_against: 20 
         },
       ];
     }
 
-    const { data: standings, error: standingsError } = await supabase
-      .from('league_standings')
-      .select('*')
-      .eq('league_group_id', groupId)
-      .order('points', { ascending: false });
+    // 1. Get all groups for this category (and optionally phase/groupId)
+    let groupsQuery = supabase
+      .from('league_groups')
+      .select('id, group_name, phase')
+      .eq('league_category_id', categoryId);
+    
+    if (groupId) groupsQuery = groupsQuery.eq('id', groupId);
+    if (phase) groupsQuery = groupsQuery.eq('phase', phase);
 
-    if (!standingsError && standings && standings.length > 0) {
-      return standings;
-    }
+    const { data: groups, error: groupsError } = await groupsQuery;
+    if (groupsError || !groups) return [];
 
-    console.log('Fetching teams from league_group_teams for group:', groupId);
-    const { data, error } = await supabase
+    const groupIds = groups.map(g => g.id);
+
+    // 2. Get all teams assigned to these groups
+    const { data: groupTeams, error: teamsError } = await supabase
       .from('league_group_teams')
       .select(`
-        id,
-        position,
+        league_group_id,
         team:league_teams!league_team_id (
-          id,
-          team_name,
-          is_ghost,
+          id, team_name, is_ghost,
           p1:clients!player1_id (first_name, last_name),
           p2:clients!player2_id (first_name, last_name)
         )
       `)
-      .eq('league_group_id', groupId)
-      .order('position', { ascending: true });
+      .in('league_group_id', groupIds);
 
-    if (error) {
-      console.error('Supabase Error (getStandings/league_group_teams):', error.message);
-      return [];
-    }
+    if (teamsError || !groupTeams) return [];
 
-    return (data || []).map((item: any) => ({
-      id: item.id,
-      group_id: groupId,
-      team_id: item.team?.id || '',
-      team_name: formatTeamFromData(item.team),
-      played: 0,
-      won: 0,
-      lost: 0,
-      points: 0,
-      sets_for: 0,
-      sets_against: 0,
-      games_for: 0,
-      games_against: 0
-    }));
+    // 3. Get existing standings for these groups
+    const { data: standingsData, error: standingsError } = await supabase
+      .from('league_standings')
+      .select('*')
+      .in('league_group_id', groupIds);
+
+    // 4. Merge data: Every team in groupTeams should have a row
+    const mergedStandings: any[] = groupTeams.map(gt => {
+      const standing = (standingsData || []).find(s => s.league_team_id === gt.team?.id && s.league_group_id === gt.league_group_id);
+      const group = groups.find(g => g.id === gt.league_group_id);
+      
+      return {
+        id: standing?.id || `${gt.league_group_id}-${gt.team?.id}`,
+        group_id: gt.league_group_id,
+        group_name: group?.group_name,
+        phase: group?.phase,
+        team_id: gt.team?.id,
+        team_name: formatTeamFromData(gt.team),
+        played: standing?.played || 0,
+        won: standing?.won || 0,
+        lost: standing?.lost || 0,
+        points: standing?.points || 0,
+        sets_for: standing?.sets_for || 0,
+        sets_against: standing?.sets_against || 0,
+        games_for: standing?.games_for || 0,
+        games_against: standing?.games_against || 0
+      };
+    });
+
+    return mergedStandings;
+  },
+
+  async getPhasesAndRounds(categoryId: string): Promise<{ phases: number[], rounds: number[] }> {
+    if (useMockData) return { phases: [1], rounds: [1, 2, 3] };
+
+    const { data: matches, error } = await supabase
+      .from('league_matches')
+      .select('phase, round')
+      .eq('league_category_id', categoryId);
+    
+    if (error) return { phases: [], rounds: [] };
+
+    const phases = Array.from(new Set(matches.map(m => m.phase).filter(p => p !== null))) as number[];
+    const rounds = Array.from(new Set(matches.map(m => m.round).filter(r => r !== null))) as number[];
+
+    return {
+      phases: phases.sort((a, b) => a - b),
+      rounds: rounds.sort((a, b) => a - b)
+    };
   }
 };

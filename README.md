@@ -51,7 +51,7 @@ Si deseas ejecutar este proyecto localmente:
 ## 🌐 Despliegue
 
 La aplicación se despliega automáticamente en Vercel al hacer push a la rama `main`.
-Visítala en: [liga-pro-consulta.vercel.app](https://liga-pro-consulta.vercel.app)
+Visítala en: [liga-pro-consulta.vercel.app]()
 
 ---
 

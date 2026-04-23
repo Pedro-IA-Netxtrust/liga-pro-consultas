@@ -58,6 +58,12 @@ export default function App() {
   const [upcoming, setUpcoming] = useState<LeagueMatch[]>([]);
   const [results, setResults] = useState<LeagueMatch[]>([]);
   const [standings, setStandings] = useState<LeagueStanding[]>([]);
+  
+  // Filters
+  const [phases, setPhases] = useState<number[]>([]);
+  const [rounds, setRounds] = useState<number[]>([]);
+  const [selectedPhase, setSelectedPhase] = useState<number | 'all'>('all');
+  const [selectedRound, setSelectedRound] = useState<number | 'all'>('all');
 
   useEffect(() => {
     loadInitialData();
@@ -77,27 +83,47 @@ export default function App() {
   const handleSelectCategory = async (cat: LeagueCategory) => {
     setSelectedCategory(cat);
     setLoading(true);
-    const grps = await dataService.getGroupsByCategory(cat.id);
-    setGroups(grps);
     
-    if (grps.length === 0) {
-      await loadDetailData(cat.id);
-    } else {
-      setLoading(false);
-    }
+    // Reset filters
+    setSelectedPhase('all');
+    setSelectedRound('all');
+    setSelectedGroup(null);
+
+    const [grps, filters] = await Promise.all([
+      dataService.getGroupsByCategory(cat.id),
+      dataService.getPhasesAndRounds(cat.id)
+    ]);
+    
+    setGroups(grps);
+    setPhases(filters.phases);
+    setRounds(filters.rounds);
+    
+    await loadDetailData(cat.id);
   };
 
   const handleSelectGroup = async (group: LeagueGroup) => {
     setSelectedGroup(group);
-    await loadDetailData(selectedCategory?.id!, group.id);
+    await loadDetailData(selectedCategory?.id!, group.id, selectedPhase === 'all' ? undefined : selectedPhase);
   };
 
-  const loadDetailData = async (catId: string, grpId?: string) => {
+  const handleFilterPhase = async (phase: number | 'all') => {
+    setSelectedPhase(phase);
+    await loadDetailData(selectedCategory?.id!, selectedGroup?.id, phase === 'all' ? undefined : phase);
+  };
+
+  const handleFilterRound = async (round: number | 'all') => {
+    setSelectedRound(round);
+    // Round filtering is typically for matches, we can handle it in the UI or fetch again.
+    // For now let's just fetch all and filter in UI if needed, or pass to service.
+    await loadDetailData(selectedCategory?.id!, selectedGroup?.id, selectedPhase === 'all' ? undefined : selectedPhase);
+  };
+
+  const loadDetailData = async (catId: string, grpId?: string, phase?: number) => {
     setLoading(true);
     const [up, res, std] = await Promise.all([
       dataService.getUpcomingMatches(catId, grpId),
       dataService.getResults(catId, grpId),
-      grpId ? dataService.getStandings(grpId) : Promise.resolve([])
+      dataService.getStandings(catId, grpId, phase)
     ]);
     setUpcoming(up);
     setResults(res);
@@ -108,7 +134,11 @@ export default function App() {
   const resetSelection = () => {
     setSelectedCategory(null);
     setSelectedGroup(null);
+    setSelectedPhase('all');
+    setSelectedRound('all');
     setGroups([]);
+    setPhases([]);
+    setRounds([]);
     setUpcoming([]);
     setResults([]);
     setStandings([]);
@@ -143,6 +173,10 @@ export default function App() {
         selectedGroup={selectedGroup}
         handleSelectCategory={handleSelectCategory}
         handleSelectGroup={handleSelectGroup}
+        handleFilterPhase={handleFilterPhase}
+        handleFilterRound={handleFilterRound}
+        setSelectedGroup={setSelectedGroup}
+        loadDetailData={loadDetailData}
         resetSelection={resetSelection}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -150,6 +184,10 @@ export default function App() {
         results={results}
         standings={standings}
         groups={groups}
+        phases={phases}
+        rounds={rounds}
+        selectedPhase={selectedPhase}
+        selectedRound={selectedRound}
         season={season}
         categories={categories}
       />
@@ -161,9 +199,10 @@ export default function App() {
 
 function AppContent({ 
   loading, isDetailView, selectedCategory, selectedGroup, 
-  handleSelectCategory, handleSelectGroup, resetSelection,
+  handleSelectCategory, handleSelectGroup, handleFilterPhase, handleFilterRound, 
+  setSelectedGroup, loadDetailData, resetSelection,
   activeTab, setActiveTab, upcoming, results, standings,
-  groups, season, categories
+  groups, phases, rounds, selectedPhase, selectedRound, season, categories
 }: any) {
   return (
     <div className="h-full flex flex-col bg-white overflow-hidden">
@@ -208,24 +247,64 @@ function AppContent({
         {/* Group Selector & Tabs (Only show if category is selected) */}
         {selectedCategory && (
           <div className="bg-slate-50/50 pt-3 px-4 pb-1">
-            {groups.length > 0 && (
-              <div className="mb-3 relative">
-                <select 
-                  value={selectedGroup?.id || ""} 
-                  onChange={(e) => {
-                    const grp = groups.find((g: any) => g.id === e.target.value);
-                    if (grp) handleSelectGroup(grp);
-                  }}
-                  className="w-full pl-4 pr-10 py-3 bg-white border border-slate-200 rounded-2xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none shadow-sm"
-                  style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 16px center', backgroundSize: '16px' }}
-                >
-                  <option value="" disabled>Selecciona un Grupo</option>
-                  {groups.map((grp: any) => (
-                    <option key={grp.id} value={grp.id}>{grp.name}</option>
-                  ))}
-                </select>
-              </div>
-            )}
+            {/* Group, Phase, Round Selectors */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-3">
+              {groups.length > 0 && (
+                <div className="relative">
+                  <select 
+                    value={selectedGroup?.id || "all"} 
+                    onChange={(e) => {
+                      if (e.target.value === "all") {
+                        setSelectedGroup(null);
+                        loadDetailData(selectedCategory.id);
+                      } else {
+                        const grp = groups.find((g: any) => g.id === e.target.value);
+                        if (grp) handleSelectGroup(grp);
+                      }
+                    }}
+                    className="w-full pl-4 pr-10 py-2.5 bg-white border border-slate-200 rounded-xl text-[11px] font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none shadow-sm"
+                    style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', backgroundSize: '14px' }}
+                  >
+                    <option value="all">Todos los Grupos</option>
+                    {groups.map((grp: any) => (
+                      <option key={grp.id} value={grp.id}>{grp.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {phases.length > 1 && (
+                <div className="relative">
+                  <select 
+                    value={selectedPhase} 
+                    onChange={(e) => handleFilterPhase(e.target.value === 'all' ? 'all' : parseInt(e.target.value))}
+                    className="w-full pl-4 pr-10 py-2.5 bg-white border border-slate-200 rounded-xl text-[11px] font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none shadow-sm"
+                    style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', backgroundSize: '14px' }}
+                  >
+                    <option value="all">Todas las Fases</option>
+                    {phases.map(p => (
+                      <option key={p} value={p}>Fase {p}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {(activeTab === 'upcoming' || activeTab === 'results') && rounds.length > 0 && (
+                <div className="relative">
+                  <select 
+                    value={selectedRound} 
+                    onChange={(e) => handleFilterRound(e.target.value === 'all' ? 'all' : parseInt(e.target.value))}
+                    className="w-full pl-4 pr-10 py-2.5 bg-white border border-slate-200 rounded-xl text-[11px] font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none shadow-sm"
+                    style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', backgroundSize: '14px' }}
+                  >
+                    <option value="all">Todas las Jornadas</option>
+                    {rounds.map(r => (
+                      <option key={r} value={r}>Jornada {r}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
 
             <div className="flex bg-slate-200/50 p-1 rounded-xl mb-3">
               <TabButton 
@@ -282,7 +361,10 @@ function AppContent({
               >
                 {activeTab === 'upcoming' && (
                   <>
-                    {upcoming.length > 0 ? upcoming.map((match: LeagueMatch) => (
+                    {upcoming.filter(m => selectedRound === 'all' || m.round === selectedRound).length > 0 ? 
+                      upcoming
+                        .filter(m => selectedRound === 'all' || m.round === selectedRound)
+                        .map((match: LeagueMatch) => (
                       <div key={match.id}>
                         <MatchCard match={match} />
                       </div>
@@ -294,7 +376,10 @@ function AppContent({
 
                 {activeTab === 'results' && (
                   <>
-                    {results.length > 0 ? results.map((match: LeagueMatch) => (
+                    {results.filter(m => selectedRound === 'all' || m.round === selectedRound).length > 0 ? 
+                      results
+                        .filter(m => selectedRound === 'all' || m.round === selectedRound)
+                        .map((match: LeagueMatch) => (
                       <div key={match.id}>
                         <MatchCard match={match} />
                       </div>
@@ -305,27 +390,88 @@ function AppContent({
                 )}
 
                 {activeTab === 'standings' && (
-                  <div className="border border-slate-100 rounded-3xl overflow-hidden bg-white shadow-sm">
-                    <div className="grid grid-cols-[32px_1fr_40px_40px] gap-2 px-4 py-4 border-b border-slate-50 bg-slate-50/30 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
-                      <span>#</span>
-                      <span>Pareja</span>
-                      <span className="text-center">PJ</span>
-                      <span className="text-center">Pts</span>
-                    </div>
-                    <div className="divide-y divide-slate-50">
-                      {standings.length > 0 ? standings.map((row: any, idx: number) => (
-                        <div key={row.id} className="grid grid-cols-[32px_1fr_40px_40px] gap-2 px-4 py-4 items-center hover:bg-slate-50/50 transition-colors">
-                          <span className="text-xs font-black text-slate-300">{idx + 1}</span>
-                          <span className="text-sm font-bold text-slate-800 leading-tight truncate pr-2">{formatTeamName(row.team_name)}</span>
-                          <span className="text-xs font-bold text-slate-500 text-center">{row.played}</span>
-                          <span className="text-sm font-black text-primary text-center">{row.points}</span>
+                  <div className="space-y-8">
+                    {/* Sort standings by group name and phase */}
+                    {Array.from(new Set(
+                      standings
+                        .sort((a, b) => {
+                          const nameA = a.group_name || '';
+                          const nameB = b.group_name || '';
+                          if (nameA !== nameB) return nameA.localeCompare(nameB);
+                          return (a.phase || 0) - (b.phase || 0);
+                        })
+                        .map(s => s.group_id || 'general')
+                    )).map(groupId => {
+                      const groupStandings = standings.filter(s => (s.group_id || 'general') === groupId);
+                      const groupName = groupStandings[0]?.group_name || 'General';
+                      const phaseNum = groupStandings[0]?.phase;
+                      
+                      return (
+                        <div key={groupId} className="border border-slate-100 rounded-3xl overflow-hidden bg-white shadow-sm">
+                          <div className="bg-slate-50/50 px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+                            <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider">
+                              {groupName} {phaseNum ? `• Fase ${phaseNum}` : ''}
+                            </h3>
+                          </div>
+                          <div className="overflow-x-auto no-scrollbar">
+                            <div className="min-w-[450px]">
+                              <div className="grid grid-cols-[32px_1fr_30px_30px_30px_40px_40px_40px] gap-2 px-4 py-4 border-b border-slate-50 bg-slate-50/10 text-[8px] font-black text-slate-400 uppercase tracking-wider text-center">
+                                <span className="text-left">#</span>
+                                <span className="text-left">Pareja</span>
+                                <span>PJ</span>
+                                <span>PG</span>
+                                <span>PP</span>
+                                <span>Sets</span>
+                                <span>Games</span>
+                                <span>Pts</span>
+                              </div>
+                              <div className="divide-y divide-slate-50">
+                                {groupStandings
+                                  .sort((a, b) => {
+                                    if (b.points !== a.points) return b.points - a.points;
+                                    const diffA = a.sets_for - a.sets_against;
+                                    const diffB = b.sets_for - b.sets_against;
+                                    if (diffA !== diffB) return diffB - diffA;
+                                    return (b.games_for - b.games_against) - (a.games_for - a.games_against);
+                                  })
+                                  .map((row: any, idx: number) => (
+                                  <div key={row.id} className="grid grid-cols-[32px_1fr_30px_30px_30px_40px_40px_40px] gap-2 px-4 py-4 items-center hover:bg-slate-50/50 transition-colors text-center">
+                                    <span className="text-xs font-black text-slate-300 text-left">{idx + 1}</span>
+                                    <span className="text-xs font-bold text-slate-800 leading-tight truncate pr-2 text-left">{formatTeamName(row.team_name)}</span>
+                                    <span className="text-[10px] font-bold text-slate-500">{row.played}</span>
+                                    <span className="text-[10px] font-bold text-emerald-500">{row.won}</span>
+                                    <span className="text-[10px] font-bold text-rose-500">{row.lost}</span>
+                                    <div className="flex flex-col">
+                                      <span className="text-[10px] font-bold text-slate-700">{row.sets_for}:{row.sets_against}</span>
+                                      <span className={`text-[8px] font-black ${row.sets_for - row.sets_against >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                                        {row.sets_for - row.sets_against > 0 ? '+' : ''}{row.sets_for - row.sets_against}
+                                      </span>
+                                    </div>
+                                    <div className="flex flex-col">
+                                      <span className="text-[10px] font-bold text-slate-700">{row.games_for}:{row.games_against}</span>
+                                      <span className={`text-[8px] font-black ${row.games_for - row.games_against >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                                        {row.games_for - row.games_against > 0 ? '+' : ''}{row.games_for - row.games_against}
+                                      </span>
+                                    </div>
+                                    <span className="text-sm font-black text-primary">{row.points}</span>
+                                  </div>
+                                ))}
+                                {groupStandings.length === 0 && (
+                                  <div className="p-10 text-center">
+                                    <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Pendiente de cálculo</p>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
                         </div>
-                      )) : (
-                        <div className="p-10 text-center">
-                          <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Pendiente de cálculo</p>
-                        </div>
-                      )}
-                    </div>
+                      );
+                    })}
+                    {standings.length === 0 && (
+                       <div className="p-10 text-center border border-dashed border-slate-200 rounded-3xl">
+                        <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Sin posiciones disponibles</p>
+                      </div>
+                    )}
                   </div>
                 )}
               </motion.div>
@@ -362,8 +508,13 @@ function MatchCard({ match }: { match: LeagueMatch }) {
   return (
     <div className="border border-slate-200 rounded-2xl p-4 bg-white shadow-sm hover:shadow-md transition-shadow">
       <div className="flex items-center justify-between mb-4 border-b border-slate-50 pb-2">
-        <div className="flex items-center gap-2">
-          <Badge className="bg-slate-100 text-slate-500">Jornada {match.round}</Badge>
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-2">
+            <Badge className="bg-slate-100 text-slate-500">Jornada {match.round}</Badge>
+            {match.group_name && (
+              <Badge className="bg-primary/10 text-primary border border-primary/20">{match.group_name}</Badge>
+            )}
+          </div>
           {match.match_date && (
             <span className="text-[10px] font-bold text-slate-400 uppercase flex items-center gap-1">
               <Calendar size={12} />
