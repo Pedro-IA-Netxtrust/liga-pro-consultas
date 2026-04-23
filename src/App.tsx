@@ -103,26 +103,39 @@ export default function App() {
 
   const handleSelectGroup = async (group: LeagueGroup) => {
     setSelectedGroup(group);
-    await loadDetailData(selectedCategory?.id!, group.id, selectedPhase === 'all' ? undefined : selectedPhase);
+    await loadDetailData(
+      selectedCategory?.id!, 
+      group.id, 
+      selectedPhase === 'all' ? undefined : selectedPhase,
+      selectedRound === 'all' ? undefined : selectedRound
+    );
   };
 
   const handleFilterPhase = async (phase: number | 'all') => {
     setSelectedPhase(phase);
-    await loadDetailData(selectedCategory?.id!, selectedGroup?.id, phase === 'all' ? undefined : phase);
+    await loadDetailData(
+      selectedCategory?.id!, 
+      selectedGroup?.id, 
+      phase === 'all' ? undefined : phase,
+      selectedRound === 'all' ? undefined : selectedRound
+    );
   };
 
   const handleFilterRound = async (round: number | 'all') => {
     setSelectedRound(round);
-    // Round filtering is typically for matches, we can handle it in the UI or fetch again.
-    // For now let's just fetch all and filter in UI if needed, or pass to service.
-    await loadDetailData(selectedCategory?.id!, selectedGroup?.id, selectedPhase === 'all' ? undefined : selectedPhase);
+    await loadDetailData(
+      selectedCategory?.id!, 
+      selectedGroup?.id, 
+      selectedPhase === 'all' ? undefined : selectedPhase,
+      round === 'all' ? undefined : round
+    );
   };
 
-  const loadDetailData = async (catId: string, grpId?: string, phase?: number) => {
+  const loadDetailData = async (catId: string, grpId?: string, phase?: number, round?: number) => {
     setLoading(true);
     const [up, res, std] = await Promise.all([
-      dataService.getUpcomingMatches(catId, grpId),
-      dataService.getResults(catId, grpId),
+      dataService.getUpcomingMatches(catId, grpId, phase, round),
+      dataService.getResults(catId, grpId, phase, round),
       dataService.getStandings(catId, grpId, phase)
     ]);
     setUpcoming(up);
@@ -362,11 +375,10 @@ function AppContent({
                 {activeTab === 'upcoming' && (
                   <>
                     {(() => {
-                      const filteredMatches = upcoming.filter(m => selectedRound === 'all' || m.round === selectedRound);
-                      if (filteredMatches.length === 0) return <EmptyState label="Sin partidos próximos." />;
+                      if (upcoming.length === 0) return <EmptyState label="Sin partidos próximos." />;
                       
                       const groupedIds = Array.from(new Set(
-                        filteredMatches
+                        upcoming
                           .sort((a, b) => {
                             const nameA = a.group_name || '';
                             const nameB = b.group_name || '';
@@ -379,7 +391,7 @@ function AppContent({
                       return (
                         <div className="space-y-8">
                           {groupedIds.map(groupId => {
-                            const groupMatches = filteredMatches.filter(m => (m.league_group_id || 'general') === groupId);
+                            const groupMatches = upcoming.filter(m => (m.league_group_id || 'general') === groupId);
                             const groupName = groupMatches[0]?.group_name || 'General';
                             const phaseNum = groupMatches[0]?.phase;
                             
@@ -407,11 +419,10 @@ function AppContent({
                 {activeTab === 'results' && (
                   <>
                     {(() => {
-                      const filteredMatches = results.filter(m => selectedRound === 'all' || m.round === selectedRound);
-                      if (filteredMatches.length === 0) return <EmptyState label="Sin resultados aún." />;
+                      if (results.length === 0) return <EmptyState label="Sin resultados aún." />;
                       
                       const groupedIds = Array.from(new Set(
-                        filteredMatches
+                        results
                           .sort((a, b) => {
                             const nameA = a.group_name || '';
                             const nameB = b.group_name || '';
@@ -424,7 +435,7 @@ function AppContent({
                       return (
                         <div className="space-y-8">
                           {groupedIds.map(groupId => {
-                            const groupMatches = filteredMatches.filter(m => (m.league_group_id || 'general') === groupId);
+                            const groupMatches = results.filter(m => (m.league_group_id || 'general') === groupId);
                             const groupName = groupMatches[0]?.group_name || 'General';
                             const phaseNum = groupMatches[0]?.phase;
                             

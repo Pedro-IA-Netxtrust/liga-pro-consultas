@@ -132,7 +132,7 @@ export const dataService = {
     }));
   },
 
-  async getUpcomingMatches(categoryId: string, groupId?: string): Promise<LeagueMatch[]> {
+  async getUpcomingMatches(categoryId: string, groupId?: string, phase?: number, round?: number): Promise<LeagueMatch[]> {
     if (useMockData) {
       return [
         { 
@@ -169,6 +169,15 @@ export const dataService = {
       query = query.eq('league_group_id', groupId);
     }
 
+    if (phase) {
+      // Matches can have a phase or belong to a group with a phase
+      query = query.or(`phase.eq.${phase},league_groups.phase.eq.${phase}`);
+    }
+
+    if (round) {
+      query = query.eq('round', round);
+    }
+
     const { data: initialData, error } = await query;
     let finalData = initialData;
 
@@ -196,7 +205,7 @@ export const dataService = {
     }));
   },
 
-  async getResults(categoryId: string, groupId?: string): Promise<LeagueMatch[]> {
+  async getResults(categoryId: string, groupId?: string, phase?: number, round?: number): Promise<LeagueMatch[]> {
     if (useMockData) {
       return [
         { 
@@ -229,6 +238,14 @@ export const dataService = {
     
     if (groupId) {
       query = query.eq('league_group_id', groupId);
+    }
+
+    if (phase) {
+      query = query.or(`phase.eq.${phase},league_groups.phase.eq.${phase}`);
+    }
+
+    if (round) {
+      query = query.eq('round', round);
     }
 
     const { data: initialData, error } = await query;
