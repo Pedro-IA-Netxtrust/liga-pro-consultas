@@ -497,7 +497,7 @@ function AppContent({
                                   .map((row: any, idx: number) => (
                                   <div key={row.id} className="grid grid-cols-[32px_1fr_30px_30px_30px_40px_40px_40px] gap-2 px-4 py-4 items-center hover:bg-slate-50/50 transition-colors text-center">
                                     <span className="text-xs font-black text-slate-300 text-left">{idx + 1}</span>
-                                    <span className="text-xs font-bold text-slate-800 leading-tight truncate pr-2 text-left">{formatTeamName(row.team_name)}</span>
+                                    <span className="text-[10px] font-bold text-slate-800 leading-snug whitespace-normal break-words pr-2 text-left line-clamp-3">{formatTeamName(row.team_name)}</span>
                                     <span className="text-[10px] font-bold text-slate-500">{row.played}</span>
                                     <span className="text-[10px] font-bold text-emerald-500">{row.won}</span>
                                     <span className="text-[10px] font-bold text-rose-500">{row.lost}</span>
@@ -590,16 +590,16 @@ function MatchCard({ match }: { match: LeagueMatch }) {
               <Badge className="bg-primary/10 text-primary border border-primary/20">{match.group_name}</Badge>
             )}
             {match.court && (
-              <Badge className="bg-emerald-100 text-emerald-700 border border-emerald-200">Cancha {match.court}</Badge>
+              <Badge className="bg-emerald-500 text-white border-none px-3 py-1 text-[11px] font-black">CANCHA {match.court}</Badge>
             )}
           </div>
           {match.match_date && (
-            <span className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1.5 mt-1">
-              <Calendar size={12} className="text-slate-400" />
+            <span className="text-[11px] font-bold text-slate-600 uppercase flex items-center gap-1.5 mt-2 bg-slate-100/50 w-fit px-2 py-0.5 rounded-lg">
+              <Calendar size={12} className="text-primary" />
               {match.match_date} 
               {match.match_time && (
                 <>
-                  <span className="text-slate-300 mx-0.5">•</span> 
+                  <span className="text-slate-300 mx-1">•</span> 
                   {match.match_time.substring(0, 5)}
                 </>
               )}
@@ -617,29 +617,15 @@ function MatchCard({ match }: { match: LeagueMatch }) {
       <div className="space-y-4">
         {/* Team 1 */}
         <div className="flex justify-between items-center">
-          <div className="flex items-center gap-3 overflow-hidden">
-            <div className={`w-1 h-8 rounded-full ${isFinished && match.team1_sets > match.team2_sets ? 'bg-primary' : 'bg-slate-100'}`} />
-            <span className={`text-sm font-bold truncate ${isFinished && match.team1_sets < match.team2_sets ? 'text-slate-400' : 'text-slate-800'}`}>
+          <div className="flex items-center gap-3 overflow-hidden pr-2">
+            <div className={`w-1.5 h-10 rounded-full shrink-0 ${isFinished && match.team1_sets > match.team2_sets ? 'bg-primary shadow-[0_0_8px_rgba(var(--primary-rgb),0.4)]' : 'bg-slate-100'}`} />
+            <span className={`text-[13px] font-bold leading-tight ${isFinished && match.team1_sets < match.team2_sets ? 'text-slate-400' : 'text-slate-800'}`}>
               {formatTeamName(match.team1_name)}
             </span>
           </div>
-          <div className="flex items-center gap-4">
-            {isFinished && hasSets && (
-              <div className="flex gap-1.5">
-                {[1, 2, 3].map(s => {
-                  const t1 = (match as any)[`s${s}_t1`];
-                  const t2 = (match as any)[`s${s}_t2`];
-                  if (t1 === null || t1 === undefined) return null;
-                  return (
-                    <span key={s} className={`text-[11px] font-bold w-4 text-center ${t1 > t2 ? 'text-slate-800' : 'text-slate-400'}`}>
-                      {t1}
-                    </span>
-                  );
-                })}
-              </div>
-            )}
+          <div className="flex items-center gap-3">
             {isFinished && (
-              <span className="font-mono text-lg font-black text-primary w-6 text-right">
+              <span className={`font-mono text-2xl font-black w-8 text-right ${match.team1_sets > match.team2_sets ? 'text-primary' : 'text-slate-300'}`}>
                 {match.team1_sets}
               </span>
             )}
@@ -648,34 +634,41 @@ function MatchCard({ match }: { match: LeagueMatch }) {
 
         {/* Team 2 */}
         <div className="flex justify-between items-center">
-          <div className="flex items-center gap-3 overflow-hidden">
-            <div className={`w-1 h-8 rounded-full ${isFinished && match.team2_sets > match.team1_sets ? 'bg-primary' : 'bg-slate-100'}`} />
-            <span className={`text-sm font-bold truncate ${isFinished && match.team2_sets < match.team1_sets ? 'text-slate-400' : 'text-slate-800'}`}>
+          <div className="flex items-center gap-3 overflow-hidden pr-2">
+            <div className={`w-1.5 h-10 rounded-full shrink-0 ${isFinished && match.team2_sets > match.team1_sets ? 'bg-primary shadow-[0_0_8px_rgba(var(--primary-rgb),0.4)]' : 'bg-slate-100'}`} />
+            <span className={`text-[13px] font-bold leading-tight ${isFinished && match.team2_sets < match.team1_sets ? 'text-slate-400' : 'text-slate-800'}`}>
               {formatTeamName(match.team2_name)}
             </span>
           </div>
-          <div className="flex items-center gap-4">
-            {isFinished && hasSets && (
-              <div className="flex gap-1.5">
-                {[1, 2, 3].map(s => {
-                  const t1 = (match as any)[`s${s}_t1`];
-                  const t2 = (match as any)[`s${s}_t2`];
-                  if (t2 === null || t2 === undefined) return null;
-                  return (
-                    <span key={s} className={`text-[11px] font-bold w-4 text-center ${t2 > t1 ? 'text-slate-800' : 'text-slate-400'}`}>
-                      {t2}
-                    </span>
-                  );
-                })}
-              </div>
-            )}
+          <div className="flex items-center gap-3">
             {isFinished && (
-              <span className="font-mono text-lg font-black text-primary w-6 text-right">
+              <span className={`font-mono text-2xl font-black w-8 text-right ${match.team2_sets > match.team1_sets ? 'text-primary' : 'text-slate-300'}`}>
                 {match.team2_sets}
               </span>
             )}
           </div>
         </div>
+
+        {/* Set Details Row */}
+        {isFinished && hasSets && (
+          <div className="pt-3 mt-2 border-t border-slate-50 flex items-center justify-center gap-4">
+            {[1, 2, 3].map(s => {
+              const t1 = (match as any)[`s${s}_t1`];
+              const t2 = (match as any)[`s${s}_t2`];
+              if (t1 === null || t1 === undefined) return null;
+              return (
+                <div key={s} className="flex flex-col items-center">
+                  <span className="text-[8px] font-black text-slate-300 uppercase mb-1">Set {s}</span>
+                  <div className="bg-slate-50 px-2 py-1 rounded-md border border-slate-100 flex items-center gap-2">
+                    <span className={`text-[11px] font-black ${t1 > t2 ? 'text-primary' : 'text-slate-500'}`}>{t1}</span>
+                    <span className="text-[10px] text-slate-300">-</span>
+                    <span className={`text-[11px] font-black ${t2 > t1 ? 'text-primary' : 'text-slate-500'}`}>{t2}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {(match.court || match.court_number) && (
