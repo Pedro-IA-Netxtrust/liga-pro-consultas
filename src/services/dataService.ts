@@ -207,9 +207,9 @@ export const dataService = {
     // Sort: Scheduled matches first, then by date, then by time, then by round
     return matches.sort((a, b) => {
       const isAScheduled = a.status.toLowerCase() === 'programado' || 
-                         (a.status.toLowerCase() === 'pendiente' && (a.match_date || a.match_time || a.court));
+                         (a.status.toLowerCase() === 'pendiente' && (a.match_date || a.match_time || a.court || a.court_name || a.court_number));
       const isBScheduled = b.status.toLowerCase() === 'programado' || 
-                         (b.status.toLowerCase() === 'pendiente' && (b.match_date || b.match_time || b.court));
+                         (b.status.toLowerCase() === 'pendiente' && (b.match_date || b.match_time || b.court || b.court_name || b.court_number));
 
       if (isAScheduled && !isBScheduled) return -1;
       if (!isAScheduled && isBScheduled) return 1;

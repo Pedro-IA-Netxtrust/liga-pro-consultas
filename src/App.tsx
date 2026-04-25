@@ -389,9 +389,9 @@ function AppContent({
                       const sortedUpcoming = [...upcoming].sort((a, b) => {
                         // 1. Scheduled status (Programado first)
                         const isAScheduled = a.status.toLowerCase() === 'programado' || 
-                                           (a.status.toLowerCase() === 'pendiente' && (a.match_date || a.match_time || a.court));
+                                           (a.status.toLowerCase() === 'pendiente' && (a.match_date || a.match_time || a.court || a.court_name || a.court_number));
                         const isBScheduled = b.status.toLowerCase() === 'programado' || 
-                                           (b.status.toLowerCase() === 'pendiente' && (b.match_date || b.match_time || b.court));
+                                           (b.status.toLowerCase() === 'pendiente' && (b.match_date || b.match_time || b.court || b.court_name || b.court_number));
 
                         if (isAScheduled && !isBScheduled) return -1;
                         if (!isAScheduled && isBScheduled) return 1;
@@ -608,7 +608,9 @@ function MatchCard({ match }: { match: LeagueMatch, key?: any }) {
 
   // Custom display status logic
   let displayStatus = match.status;
-  if (match.status.toLowerCase() === 'pendiente' && (match.match_date || match.match_time || match.court)) {
+  const courtInfo = match.court_name || match.court || (match.court_number ? `Cancha ${match.court_number}` : null);
+  
+  if (match.status.toLowerCase() === 'pendiente' && (match.match_date || match.match_time || courtInfo)) {
     displayStatus = 'programado';
   }
 
@@ -632,12 +634,14 @@ function MatchCard({ match }: { match: LeagueMatch, key?: any }) {
         </div>
 
         {/* Highlighted Schedule Box */}
-        {(match.match_date || match.court) && (
+        {(match.match_date || courtInfo) && (
           <div className="flex items-center gap-3 bg-slate-50/80 p-3 rounded-2xl border border-slate-100 group-hover:bg-primary/5 group-hover:border-primary/10 transition-colors">
-            {match.court && (
+            {courtInfo && (
               <div className="bg-emerald-500 text-white px-3 py-2 rounded-xl flex flex-col items-center justify-center min-w-[60px] shadow-lg shadow-emerald-500/20">
-                <span className="text-[8px] font-black uppercase leading-none mb-1 opacity-80">Cancha</span>
-                <span className="text-lg font-black leading-none">{match.court}</span>
+                <span className="text-[8px] font-black uppercase leading-none mb-1 opacity-80">Ubicación</span>
+                <span className="text-sm font-black leading-tight text-center">
+                  {courtInfo.replace(/cancha/i, '').trim() || courtInfo}
+                </span>
               </div>
             )}
             <div className="flex flex-col justify-center flex-1">
