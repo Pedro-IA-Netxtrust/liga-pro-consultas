@@ -196,13 +196,36 @@ export const dataService = {
       finalData = retryData;
     }
 
-    return (finalData || []).map((m: any) => ({
+    const matches = (finalData || []).map((m: any) => ({
       ...m,
       team1_name: formatTeamFromData(m.team1),
       team2_name: formatTeamFromData(m.team2),
       group_name: m.group?.group_name,
       phase: m.group?.phase || m.phase
     }));
+
+    // Sort: Scheduled matches first, then by date, then by time, then by round
+    return matches.sort((a, b) => {
+      const isAScheduled = a.status.toLowerCase() === 'programado' || 
+                         (a.status.toLowerCase() === 'pendiente' && (a.match_date || a.match_time || a.court));
+      const isBScheduled = b.status.toLowerCase() === 'programado' || 
+                         (b.status.toLowerCase() === 'pendiente' && (b.match_date || b.match_time || b.court));
+
+      if (isAScheduled && !isBScheduled) return -1;
+      if (!isAScheduled && isBScheduled) return 1;
+
+      // If both are same scheduled status, sort by date/time
+      if (a.match_date && b.match_date) {
+        if (a.match_date !== b.match_date) return a.match_date.localeCompare(b.match_date);
+        if (a.match_time && b.match_time) return a.match_time.localeCompare(b.match_time);
+      } else if (a.match_date) {
+        return -1;
+      } else if (b.match_date) {
+        return 1;
+      }
+
+      return (a.round || 0) - (b.round || 0);
+    });
   },
 
   async getResults(categoryId: string, groupId?: string, phase?: number, round?: number): Promise<LeagueMatch[]> {

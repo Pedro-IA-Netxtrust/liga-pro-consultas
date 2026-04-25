@@ -1,20 +1,20 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { 
-  Trophy, 
-  ChevronRight, 
-  Calendar, 
-  CheckCircle2, 
-  BarChart3, 
+import {
+  Trophy,
+  ChevronRight,
+  Calendar,
+  CheckCircle2,
+  BarChart3,
   Search,
   ChevronLeft,
   Info
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { dataService } from './services/dataService';
-import { 
-  LeagueCategory, 
-  LeagueGroup, 
-  LeagueMatch, 
+import {
+  LeagueCategory,
+  LeagueGroup,
+  LeagueMatch,
   LeagueStanding,
   LeagueSeason
 } from './types';
@@ -58,7 +58,7 @@ export default function App() {
   const [upcoming, setUpcoming] = useState<LeagueMatch[]>([]);
   const [results, setResults] = useState<LeagueMatch[]>([]);
   const [standings, setStandings] = useState<LeagueStanding[]>([]);
-  
+
   // Filters
   const [phases, setPhases] = useState<number[]>([]);
   const [rounds, setRounds] = useState<number[]>([]);
@@ -83,7 +83,7 @@ export default function App() {
   const handleSelectCategory = async (cat: LeagueCategory) => {
     setSelectedCategory(cat);
     setLoading(true);
-    
+
     // Reset filters
     setSelectedPhase('all');
     setSelectedRound('all');
@@ -93,11 +93,11 @@ export default function App() {
       dataService.getGroupsByCategory(cat.id),
       dataService.getPhasesAndRounds(cat.id)
     ]);
-    
+
     setGroups(grps);
     setPhases(filters.phases);
     setRounds(filters.rounds);
-    
+
     if (grps.length > 0) {
       setSelectedGroup(grps[0]);
       await loadDetailData(cat.id, grps[0].id);
@@ -109,8 +109,8 @@ export default function App() {
   const handleSelectGroup = async (group: LeagueGroup) => {
     setSelectedGroup(group);
     await loadDetailData(
-      selectedCategory?.id!, 
-      group.id, 
+      selectedCategory?.id!,
+      group.id,
       selectedPhase === 'all' ? undefined : selectedPhase,
       selectedRound === 'all' ? undefined : selectedRound
     );
@@ -119,8 +119,8 @@ export default function App() {
   const handleFilterPhase = async (phase: number | 'all') => {
     setSelectedPhase(phase);
     await loadDetailData(
-      selectedCategory?.id!, 
-      selectedGroup?.id, 
+      selectedCategory?.id!,
+      selectedGroup?.id,
       phase === 'all' ? undefined : phase,
       selectedRound === 'all' ? undefined : selectedRound
     );
@@ -129,8 +129,8 @@ export default function App() {
   const handleFilterRound = async (round: number | 'all') => {
     setSelectedRound(round);
     await loadDetailData(
-      selectedCategory?.id!, 
-      selectedGroup?.id, 
+      selectedCategory?.id!,
+      selectedGroup?.id,
       selectedPhase === 'all' ? undefined : selectedPhase,
       round === 'all' ? undefined : round
     );
@@ -164,7 +164,7 @@ export default function App() {
   };
 
   const filteredCategories = useMemo(() => {
-    return categories.filter(c => 
+    return categories.filter(c =>
       c.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
   }, [categories, searchQuery]);
@@ -184,7 +184,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans">
-      <AppContent 
+      <AppContent
         loading={loading}
         isDetailView={isDetailView}
         selectedCategory={selectedCategory}
@@ -215,9 +215,9 @@ export default function App() {
 
 // --- App Content Component ---
 
-function AppContent({ 
-  loading, isDetailView, selectedCategory, selectedGroup, 
-  handleSelectCategory, handleSelectGroup, handleFilterPhase, handleFilterRound, 
+function AppContent({
+  loading, isDetailView, selectedCategory, selectedGroup,
+  handleSelectCategory, handleSelectGroup, handleFilterPhase, handleFilterRound,
   setSelectedGroup, loadDetailData, resetSelection,
   activeTab, setActiveTab, upcoming, results, standings,
   groups, phases, rounds, selectedPhase, selectedRound, season, categories
@@ -249,11 +249,10 @@ function AppContent({
                 <button
                   key={cat.id}
                   onClick={() => handleSelectCategory(cat)}
-                  className={`whitespace-nowrap px-4 py-2 rounded-full text-[11px] font-black uppercase tracking-wider transition-all border ${
-                    isActive 
-                      ? 'bg-primary text-white border-primary shadow-lg shadow-primary/20 scale-[1.02]' 
+                  className={`whitespace-nowrap px-4 py-2 rounded-full text-[11px] font-black uppercase tracking-wider transition-all border ${isActive
+                      ? 'bg-primary text-white border-primary shadow-lg shadow-primary/20 scale-[1.02]'
                       : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
-                  }`}
+                    }`}
                 >
                   {cat.name}
                 </button>
@@ -269,13 +268,13 @@ function AppContent({
             <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-3">
               {groups.length > 0 && (
                 <div className="relative">
-                  <select 
-                    value={selectedGroup?.id || "all"} 
+                  <select
+                    value={selectedGroup?.id || "all"}
                     onChange={(e) => {
                       if (e.target.value === "all") {
                         setSelectedGroup(null);
                         loadDetailData(
-                          selectedCategory.id, 
+                          selectedCategory.id,
                           undefined,
                           selectedPhase === 'all' ? undefined : selectedPhase,
                           selectedRound === 'all' ? undefined : selectedRound
@@ -298,8 +297,8 @@ function AppContent({
 
               {phases.length > 1 && (
                 <div className="relative">
-                  <select 
-                    value={selectedPhase} 
+                  <select
+                    value={selectedPhase}
                     onChange={(e) => handleFilterPhase(e.target.value === 'all' ? 'all' : parseInt(e.target.value))}
                     className="w-full pl-4 pr-10 py-2.5 bg-white border border-slate-200 rounded-xl text-[11px] font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none shadow-sm"
                     style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', backgroundSize: '14px' }}
@@ -314,8 +313,8 @@ function AppContent({
 
               {(activeTab === 'upcoming' || activeTab === 'results') && rounds.length > 0 && (
                 <div className="relative">
-                  <select 
-                    value={selectedRound} 
+                  <select
+                    value={selectedRound}
                     onChange={(e) => handleFilterRound(e.target.value === 'all' ? 'all' : parseInt(e.target.value))}
                     className="w-full pl-4 pr-10 py-2.5 bg-white border border-slate-200 rounded-xl text-[11px] font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none shadow-sm"
                     style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', backgroundSize: '14px' }}
@@ -330,18 +329,18 @@ function AppContent({
             </div>
 
             <div className="flex bg-slate-200/50 p-1 rounded-xl mb-3">
-              <TabButton 
-                active={activeTab === 'upcoming'} 
+              <TabButton
+                active={activeTab === 'upcoming'}
                 onClick={() => setActiveTab('upcoming')}
                 label="Próximos"
               />
-              <TabButton 
-                active={activeTab === 'results'} 
+              <TabButton
+                active={activeTab === 'results'}
                 onClick={() => setActiveTab('results')}
                 label="Resultados"
               />
-              <TabButton 
-                active={activeTab === 'standings'} 
+              <TabButton
+                active={activeTab === 'standings'}
                 onClick={() => setActiveTab('standings')}
                 label="Posiciones"
               />
@@ -365,7 +364,7 @@ function AppContent({
         ) : (
           <AnimatePresence mode="wait">
             {loading ? (
-              <motion.div 
+              <motion.div
                 key="loading"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -386,25 +385,45 @@ function AppContent({
                   <>
                     {(() => {
                       if (upcoming.length === 0) return <EmptyState label="Sin partidos próximos." />;
-                      
-                      const groupedIds = Array.from(new Set(
-                        upcoming
-                          .sort((a, b) => {
-                            const nameA = a.group_name || '';
-                            const nameB = b.group_name || '';
-                            if (nameA !== nameB) return nameA.localeCompare(nameB);
-                            return (a.phase || 0) - (b.phase || 0);
-                          })
-                          .map(m => m.league_group_id || 'general')
-                      ));
+
+                      const sortedUpcoming = [...upcoming].sort((a, b) => {
+                        // 1. Scheduled status (Programado first)
+                        const isAScheduled = a.status.toLowerCase() === 'programado' || 
+                                           (a.status.toLowerCase() === 'pendiente' && (a.match_date || a.match_time || a.court));
+                        const isBScheduled = b.status.toLowerCase() === 'programado' || 
+                                           (b.status.toLowerCase() === 'pendiente' && (b.match_date || b.match_time || b.court));
+
+                        if (isAScheduled && !isBScheduled) return -1;
+                        if (!isAScheduled && isBScheduled) return 1;
+
+                        // 2. Date/Time
+                        if (a.match_date && b.match_date) {
+                          if (a.match_date !== b.match_date) return a.match_date.localeCompare(b.match_date);
+                          if (a.match_time && b.match_time) return a.match_time.localeCompare(b.match_time);
+                        } else if (a.match_date) return -1;
+                        else if (b.match_date) return 1;
+
+                        // 3. Group Name
+                        const nameA = a.group_name || '';
+                        const nameB = b.group_name || '';
+                        if (nameA !== nameB) return nameA.localeCompare(nameB);
+                        
+                        // 4. Phase
+                        if (a.phase !== b.phase) return (a.phase || 0) - (b.phase || 0);
+
+                        // 5. Round
+                        return (a.round || 0) - (b.round || 0);
+                      });
+
+                      const groupedIds = Array.from(new Set(sortedUpcoming.map(m => m.league_group_id || 'general')));
 
                       return (
                         <div className="space-y-8">
                           {groupedIds.map(groupId => {
-                            const groupMatches = upcoming.filter(m => (m.league_group_id || 'general') === groupId);
+                            const groupMatches = sortedUpcoming.filter(m => (m.league_group_id || 'general') === groupId);
                             const groupName = groupMatches[0]?.group_name || 'General';
                             const phaseNum = groupMatches[0]?.phase;
-                            
+
                             return (
                               <div key={groupId} className="space-y-3">
                                 {groupedIds.length > 1 && (
@@ -430,14 +449,15 @@ function AppContent({
                   <>
                     {(() => {
                       if (results.length === 0) return <EmptyState label="Sin resultados aún." />;
-                      
+
                       const groupedIds = Array.from(new Set(
-                        results
+                        [...results]
                           .sort((a, b) => {
                             const nameA = a.group_name || '';
                             const nameB = b.group_name || '';
                             if (nameA !== nameB) return nameA.localeCompare(nameB);
-                            return (a.phase || 0) - (b.phase || 0);
+                            if (a.phase !== b.phase) return (a.phase || 0) - (b.phase || 0);
+                            return (b.round || 0) - (a.round || 0); // Results usually sorted by round desc
                           })
                           .map(m => m.league_group_id || 'general')
                       ));
@@ -448,7 +468,7 @@ function AppContent({
                             const groupMatches = results.filter(m => (m.league_group_id || 'general') === groupId);
                             const groupName = groupMatches[0]?.group_name || 'General';
                             const phaseNum = groupMatches[0]?.phase;
-                            
+
                             return (
                               <div key={groupId} className="space-y-3">
                                 {groupedIds.length > 1 && (
@@ -486,7 +506,7 @@ function AppContent({
                       const groupStandings = standings.filter(s => (s.group_id || 'general') === groupId);
                       const groupName = groupStandings[0]?.group_name || 'General';
                       const phaseNum = groupStandings[0]?.phase;
-                      
+
                       return (
                         <div key={groupId} className="border border-slate-100 rounded-3xl overflow-hidden bg-white shadow-sm">
                           <div className="bg-slate-50/50 px-4 py-3 border-b border-slate-100 flex items-center justify-between">
@@ -516,27 +536,27 @@ function AppContent({
                                     return (b.games_for - b.games_against) - (a.games_for - a.games_against);
                                   })
                                   .map((row: any, idx: number) => (
-                                  <div key={row.id} className="grid grid-cols-[32px_1fr_30px_30px_30px_40px_40px_40px] gap-2 px-4 py-4 items-center hover:bg-slate-50/50 transition-colors text-center">
-                                    <span className="text-xs font-black text-slate-300 text-left">{idx + 1}</span>
-                                    <span className="text-[10px] font-bold text-slate-800 leading-snug whitespace-normal break-words pr-2 text-left line-clamp-3">{formatTeamName(row.team_name)}</span>
-                                    <span className="text-[10px] font-bold text-slate-500">{row.played}</span>
-                                    <span className="text-[10px] font-bold text-emerald-500">{row.won}</span>
-                                    <span className="text-[10px] font-bold text-rose-500">{row.lost}</span>
-                                    <div className="flex flex-col">
-                                      <span className="text-[10px] font-bold text-slate-700">{row.sets_for}:{row.sets_against}</span>
-                                      <span className={`text-[8px] font-black ${row.sets_for - row.sets_against >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                                        {row.sets_for - row.sets_against > 0 ? '+' : ''}{row.sets_for - row.sets_against}
-                                      </span>
+                                    <div key={row.id} className="grid grid-cols-[32px_1fr_30px_30px_30px_40px_40px_40px] gap-2 px-4 py-4 items-center hover:bg-slate-50/50 transition-colors text-center">
+                                      <span className="text-xs font-black text-slate-300 text-left">{idx + 1}</span>
+                                      <span className="text-[10px] font-bold text-slate-800 leading-snug whitespace-normal break-words pr-2 text-left line-clamp-3">{formatTeamName(row.team_name)}</span>
+                                      <span className="text-[10px] font-bold text-slate-500">{row.played}</span>
+                                      <span className="text-[10px] font-bold text-emerald-500">{row.won}</span>
+                                      <span className="text-[10px] font-bold text-rose-500">{row.lost}</span>
+                                      <div className="flex flex-col">
+                                        <span className="text-[10px] font-bold text-slate-700">{row.sets_for}:{row.sets_against}</span>
+                                        <span className={`text-[8px] font-black ${row.sets_for - row.sets_against >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                                          {row.sets_for - row.sets_against > 0 ? '+' : ''}{row.sets_for - row.sets_against}
+                                        </span>
+                                      </div>
+                                      <div className="flex flex-col">
+                                        <span className="text-[10px] font-bold text-slate-700">{row.games_for}:{row.games_against}</span>
+                                        <span className={`text-[8px] font-black ${row.games_for - row.games_against >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                                          {row.games_for - row.games_against > 0 ? '+' : ''}{row.games_for - row.games_against}
+                                        </span>
+                                      </div>
+                                      <span className="text-sm font-black text-primary">{row.points}</span>
                                     </div>
-                                    <div className="flex flex-col">
-                                      <span className="text-[10px] font-bold text-slate-700">{row.games_for}:{row.games_against}</span>
-                                      <span className={`text-[8px] font-black ${row.games_for - row.games_against >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                                        {row.games_for - row.games_against > 0 ? '+' : ''}{row.games_for - row.games_against}
-                                      </span>
-                                    </div>
-                                    <span className="text-sm font-black text-primary">{row.points}</span>
-                                  </div>
-                                ))}
+                                  ))}
                                 {groupStandings.length === 0 && (
                                   <div className="p-10 text-center">
                                     <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Pendiente de cálculo</p>
@@ -549,11 +569,11 @@ function AppContent({
                       );
                     })}
                     {standings.length === 0 && (
-                       <div className="p-10 text-center border border-dashed border-slate-200 rounded-3xl">
+                      <div className="p-10 text-center border border-dashed border-slate-200 rounded-3xl">
                         <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Sin posiciones disponibles</p>
                       </div>
                     )}
-                    
+
                   </div>
                 )}
               </motion.div>
@@ -569,13 +589,12 @@ function AppContent({
 
 function TabButton({ active, onClick, label }: { active: boolean, onClick: () => void, label: string }) {
   return (
-    <button 
+    <button
       onClick={onClick}
-      className={`flex-1 py-2 text-[11px] font-bold transition-all rounded-lg ${
-        active 
-          ? 'bg-white text-primary shadow-sm' 
+      className={`flex-1 py-2 text-[11px] font-bold transition-all rounded-lg ${active
+          ? 'bg-white text-primary shadow-sm'
           : 'text-slate-500 hover:text-slate-700'
-      }`}
+        }`}
     >
       {label}
     </button>
@@ -594,38 +613,51 @@ function MatchCard({ match }: { match: LeagueMatch, key?: any }) {
   }
 
   return (
-    <div className="border border-slate-200 rounded-2xl p-4 bg-white shadow-sm hover:shadow-md transition-shadow">
-      <div className="flex items-center justify-between mb-4 border-b border-slate-50 pb-2">
-        <div className="flex flex-col gap-1">
+    <div className="border border-slate-200 rounded-3xl p-5 bg-white shadow-sm hover:shadow-xl hover:border-primary/20 transition-all duration-300 group">
+      {/* Match Meta Header */}
+      <div className="flex flex-col gap-3 mb-5">
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Badge className="bg-slate-100 text-slate-500">Jornada {match.round}</Badge>
+            <Badge className="bg-slate-100 text-slate-500 font-black">J1 - R{match.round}</Badge>
             {match.group_name && (
-              <Badge className="bg-primary/10 text-primary border border-primary/20">{match.group_name}</Badge>
-            )}
-            {match.court && (
-              <Badge className="bg-emerald-500 text-white border-none px-3 py-1 text-[11px] font-black">CANCHA {match.court}</Badge>
+              <Badge className="bg-primary/5 text-primary border border-primary/10 font-black">{match.group_name}</Badge>
             )}
           </div>
-          {match.match_date && (
-            <span className="text-[11px] font-bold text-slate-600 uppercase flex items-center gap-1.5 mt-2 bg-slate-100/50 w-fit px-2 py-0.5 rounded-lg">
-              <Calendar size={12} className="text-primary" />
-              {match.match_date} 
-              {match.match_time && (
-                <>
-                  <span className="text-slate-300 mx-1">•</span> 
-                  {match.match_time.substring(0, 5)}
-                </>
-              )}
-            </span>
-          )}
+          <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-lg ${isWalkover ? 'bg-rose-50 text-rose-600' :
+              isFinished ? 'bg-primary/5 text-primary' :
+                displayStatus.toLowerCase() === 'programado' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'
+            }`}>
+            {displayStatus}
+          </span>
         </div>
-        <span className={`text-[10px] font-black uppercase tracking-widest ${
-          isWalkover ? 'text-rose-500' : 
-          isFinished ? 'text-primary' : 
-          displayStatus.toLowerCase() === 'programado' ? 'text-emerald-500' : 'text-amber-500'
-        }`}>
-          {displayStatus}
-        </span>
+
+        {/* Highlighted Schedule Box */}
+        {(match.match_date || match.court) && (
+          <div className="flex items-center gap-3 bg-slate-50/80 p-3 rounded-2xl border border-slate-100 group-hover:bg-primary/5 group-hover:border-primary/10 transition-colors">
+            {match.court && (
+              <div className="bg-emerald-500 text-white px-3 py-2 rounded-xl flex flex-col items-center justify-center min-w-[60px] shadow-lg shadow-emerald-500/20">
+                <span className="text-[8px] font-black uppercase leading-none mb-1 opacity-80">Cancha</span>
+                <span className="text-lg font-black leading-none">{match.court}</span>
+              </div>
+            )}
+            <div className="flex flex-col justify-center flex-1">
+              {match.match_date && (
+                <div className="flex items-center gap-2 text-slate-800">
+                  <Calendar size={14} className="text-primary" />
+                  <span className="text-[13px] font-black uppercase tracking-tight">{match.match_date}</span>
+                </div>
+              )}
+              {match.match_time && (
+                <div className="flex items-center gap-2 text-slate-500 mt-0.5">
+                  <div className="w-3.5 h-3.5 rounded-full bg-primary/10 flex items-center justify-center">
+                    <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+                  </div>
+                  <span className="text-xs font-bold">{match.match_time.substring(0, 5)} hrs</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="space-y-4">
@@ -685,14 +717,6 @@ function MatchCard({ match }: { match: LeagueMatch, key?: any }) {
         )}
       </div>
 
-      {(match.court || match.court_number) && (
-        <div className="mt-4 pt-3 border-t border-slate-50 flex items-center justify-between">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1">
-            <Trophy size={11} />
-            {match.court} {match.court_number ? `#${match.court_number}` : ''}
-          </span>
-        </div>
-      )}
     </div>
   );
 }
