@@ -633,8 +633,8 @@ function MatchCard({ match }: { match: LeagueMatch, key?: any }) {
           </span>
         </div>
 
-        {/* Highlighted Schedule Box */}
-        {(match.match_date || courtInfo) && (
+        {/* Highlighted Schedule Box (Only for Upcoming) */}
+        {!isFinished && (match.match_date || courtInfo) && (
           <div className="flex flex-col sm:flex-row items-stretch gap-2 group-hover:scale-[1.02] transition-transform duration-300">
             {courtInfo && (
               <div className="bg-emerald-500 text-white p-3 rounded-2xl flex flex-row sm:flex-col items-center justify-center gap-2 sm:gap-1 min-w-[100px] shadow-lg shadow-emerald-500/20 border border-emerald-400/50">
@@ -673,6 +673,28 @@ function MatchCard({ match }: { match: LeagueMatch, key?: any }) {
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {/* Played Match Header (Subtle) */}
+        {isFinished && (
+          <div className="flex items-center justify-between bg-slate-50/50 p-3 rounded-2xl border border-slate-100/50">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-lg bg-slate-200/50 flex items-center justify-center">
+                <Calendar size={12} className="text-slate-500" />
+              </div>
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                Jugado el <span className="text-slate-600">{match.match_date || 'Fecha pendiente'}</span>
+              </span>
+            </div>
+            {courtInfo && (
+              <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-white border border-slate-100 shadow-sm">
+                <Trophy size={10} className="text-emerald-500" />
+                <span className="text-[9px] font-black text-slate-400 uppercase">
+                  {courtInfo.replace(/cancha/i, '').trim()}
+                </span>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -714,22 +736,29 @@ function MatchCard({ match }: { match: LeagueMatch, key?: any }) {
 
         {/* Set Details Row */}
         {isFinished && hasSets && (
-          <div className="pt-3 mt-2 border-t border-slate-50 flex items-center justify-center gap-4">
-            {[1, 2, 3].map(s => {
-              const t1 = (match as any)[`s${s}_t1`];
-              const t2 = (match as any)[`s${s}_t2`];
-              if (t1 === null || t1 === undefined) return null;
-              return (
-                <div key={s} className="flex flex-col items-center">
-                  <span className="text-[8px] font-black text-slate-300 uppercase mb-1">Set {s}</span>
-                  <div className="bg-slate-50 px-2 py-1 rounded-md border border-slate-100 flex items-center gap-2">
-                    <span className={`text-[11px] font-black ${t1 > t2 ? 'text-primary' : 'text-slate-500'}`}>{t1}</span>
-                    <span className="text-[10px] text-slate-300">-</span>
-                    <span className={`text-[11px] font-black ${t2 > t1 ? 'text-primary' : 'text-slate-500'}`}>{t2}</span>
+          <div className="pt-4 mt-2 border-t border-slate-50">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="h-[1px] flex-1 bg-slate-100" />
+              <span className="text-[9px] font-black text-slate-300 uppercase tracking-[0.2em]">Marcador Final</span>
+              <div className="h-[1px] flex-1 bg-slate-100" />
+            </div>
+            <div className="flex items-center justify-center gap-4">
+              {[1, 2, 3].map(s => {
+                const t1 = (match as any)[`s${s}_t1`];
+                const t2 = (match as any)[`s${s}_t2`];
+                if (t1 === null || t1 === undefined) return null;
+                return (
+                  <div key={s} className="flex flex-col items-center">
+                    <span className="text-[8px] font-black text-slate-400 uppercase mb-1">Set {s}</span>
+                    <div className={`px-3 py-1.5 rounded-xl border flex items-center gap-3 transition-all ${t1 !== t2 ? 'bg-white shadow-sm' : 'bg-slate-50/50'}`}>
+                      <span className={`text-xs font-black ${t1 > t2 ? 'text-primary scale-110' : 'text-slate-400'}`}>{t1}</span>
+                      <div className="w-[1px] h-3 bg-slate-100" />
+                      <span className={`text-xs font-black ${t2 > t1 ? 'text-primary scale-110' : 'text-slate-400'}`}>{t2}</span>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         )}
       </div>
