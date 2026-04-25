@@ -635,28 +635,41 @@ function MatchCard({ match }: { match: LeagueMatch, key?: any }) {
 
         {/* Highlighted Schedule Box */}
         {(match.match_date || courtInfo) && (
-          <div className="flex items-center gap-3 bg-slate-50/80 p-3 rounded-2xl border border-slate-100 group-hover:bg-primary/5 group-hover:border-primary/10 transition-colors">
+          <div className="flex flex-col sm:flex-row items-stretch gap-2 group-hover:scale-[1.02] transition-transform duration-300">
             {courtInfo && (
-              <div className="bg-emerald-500 text-white px-3 py-2 rounded-xl flex flex-col items-center justify-center min-w-[60px] shadow-lg shadow-emerald-500/20">
-                <span className="text-[8px] font-black uppercase leading-none mb-1 opacity-80">Ubicación</span>
-                <span className="text-sm font-black leading-tight text-center">
-                  {courtInfo.replace(/cancha/i, '').trim() || courtInfo}
-                </span>
+              <div className="bg-emerald-500 text-white p-3 rounded-2xl flex flex-row sm:flex-col items-center justify-center gap-2 sm:gap-1 min-w-[100px] shadow-lg shadow-emerald-500/20 border border-emerald-400/50">
+                <div className="bg-white/20 p-1.5 rounded-lg">
+                  <Trophy size={16} className="text-white" />
+                </div>
+                <div className="flex flex-col items-start sm:items-center">
+                  <span className="text-[9px] font-black uppercase leading-none opacity-80 tracking-widest">Cancha</span>
+                  <span className="text-xl font-black leading-none mt-1">
+                    {courtInfo.replace(/cancha/i, '').trim() || courtInfo}
+                  </span>
+                </div>
               </div>
             )}
-            <div className="flex flex-col justify-center flex-1">
+            
+            <div className="flex-1 bg-slate-50/80 p-3 rounded-2xl border border-slate-100 flex flex-col justify-center gap-1 group-hover:bg-primary/5 group-hover:border-primary/10 transition-colors">
               {match.match_date && (
-                <div className="flex items-center gap-2 text-slate-800">
-                  <Calendar size={14} className="text-primary" />
-                  <span className="text-[13px] font-black uppercase tracking-tight">{match.match_date}</span>
+                <div className="flex items-center gap-3">
+                  <div className="bg-primary/10 p-2 rounded-xl">
+                    <Calendar size={18} className="text-primary" />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Fecha del Encuentro</span>
+                    <span className="text-lg font-black text-slate-800 leading-none tracking-tight">
+                      {match.match_date}
+                    </span>
+                  </div>
                 </div>
               )}
               {match.match_time && (
-                <div className="flex items-center gap-2 text-slate-500 mt-0.5">
-                  <div className="w-3.5 h-3.5 rounded-full bg-primary/10 flex items-center justify-center">
-                    <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-                  </div>
-                  <span className="text-xs font-bold">{match.match_time.substring(0, 5)} hrs</span>
+                <div className="flex items-center gap-2 px-1 mt-1">
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="text-[11px] font-bold text-slate-500 tracking-wide uppercase">
+                    Comienza a las <span className="text-slate-800 font-black">{match.match_time.substring(0, 5)}</span> hrs
+                  </span>
                 </div>
               )}
             </div>
