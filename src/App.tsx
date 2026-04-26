@@ -28,6 +28,22 @@ const formatTeamName = (name: string) => {
     .join(' / ');
 };
 
+// Helper to format date: "2024-05-20" -> "20 de Mayo, 2024"
+const formatDate = (dateStr: string) => {
+  if (!dateStr) return '';
+  try {
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
+    return new Intl.DateTimeFormat('es-ES', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    }).format(date);
+  } catch (e) {
+    return dateStr;
+  }
+};
+
 // --- Components ---
 
 const Badge = ({ children, className = "" }: { children: React.ReactNode, className?: string }) => (
@@ -659,7 +675,7 @@ function MatchCard({ match }: { match: LeagueMatch, key?: any }) {
                   <div className="flex flex-col">
                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Fecha del Encuentro</span>
                     <span className="text-lg font-black text-slate-800 leading-none tracking-tight">
-                      {match.match_date}
+                      {formatDate(match.match_date)}
                     </span>
                   </div>
                 </div>
@@ -684,7 +700,7 @@ function MatchCard({ match }: { match: LeagueMatch, key?: any }) {
                 <Calendar size={12} className="text-slate-500" />
               </div>
               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                Jugado el <span className="text-slate-600">{match.match_date || 'Fecha pendiente'}</span>
+              Jugado el <span className="text-slate-600">{match.match_date ? formatDate(match.match_date) : 'Fecha pendiente'}</span>
               </span>
             </div>
             {courtInfo && (
@@ -709,6 +725,22 @@ function MatchCard({ match }: { match: LeagueMatch, key?: any }) {
             </span>
           </div>
           <div className="flex items-center gap-3">
+            {isFinished && hasSets && (
+              <div className="flex gap-2.5 mr-3">
+                {[1, 2, 3].map(s => {
+                  const t1 = (match as any)[`s${s}_t1`];
+                  const t2 = (match as any)[`s${s}_t2`];
+                  if (t1 === null || t1 === undefined) return null;
+                  return (
+                    <div key={s} className="flex flex-col items-center">
+                      <span className={`text-[11px] font-black w-4 text-center ${t1 > t2 ? 'text-slate-900' : 'text-slate-400'}`}>
+                        {t1}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
             {isFinished && (
               <span className={`font-mono text-2xl font-black w-8 text-right ${match.team1_sets > match.team2_sets ? 'text-primary' : 'text-slate-300'}`}>
                 {match.team1_sets}
@@ -726,6 +758,22 @@ function MatchCard({ match }: { match: LeagueMatch, key?: any }) {
             </span>
           </div>
           <div className="flex items-center gap-3">
+            {isFinished && hasSets && (
+              <div className="flex gap-2.5 mr-3">
+                {[1, 2, 3].map(s => {
+                  const t1 = (match as any)[`s${s}_t1`];
+                  const t2 = (match as any)[`s${s}_t2`];
+                  if (t1 === null || t1 === undefined) return null;
+                  return (
+                    <div key={s} className="flex flex-col items-center">
+                      <span className={`text-[11px] font-black w-4 text-center ${t2 > t1 ? 'text-slate-900' : 'text-slate-400'}`}>
+                        {t2}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
             {isFinished && (
               <span className={`font-mono text-2xl font-black w-8 text-right ${match.team2_sets > match.team1_sets ? 'text-primary' : 'text-slate-300'}`}>
                 {match.team2_sets}
@@ -733,36 +781,7 @@ function MatchCard({ match }: { match: LeagueMatch, key?: any }) {
             )}
           </div>
         </div>
-
-        {/* Set Details Row */}
-        {isFinished && hasSets && (
-          <div className="pt-4 mt-2 border-t border-slate-50">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="h-[1px] flex-1 bg-slate-100" />
-              <span className="text-[9px] font-black text-slate-300 uppercase tracking-[0.2em]">Marcador Final</span>
-              <div className="h-[1px] flex-1 bg-slate-100" />
-            </div>
-            <div className="flex items-center justify-center gap-4">
-              {[1, 2, 3].map(s => {
-                const t1 = (match as any)[`s${s}_t1`];
-                const t2 = (match as any)[`s${s}_t2`];
-                if (t1 === null || t1 === undefined) return null;
-                return (
-                  <div key={s} className="flex flex-col items-center">
-                    <span className="text-[8px] font-black text-slate-400 uppercase mb-1">Set {s}</span>
-                    <div className={`px-3 py-1.5 rounded-xl border flex items-center gap-3 transition-all ${t1 !== t2 ? 'bg-white shadow-sm' : 'bg-slate-50/50'}`}>
-                      <span className={`text-xs font-black ${t1 > t2 ? 'text-primary scale-110' : 'text-slate-400'}`}>{t1}</span>
-                      <div className="w-[1px] h-3 bg-slate-100" />
-                      <span className={`text-xs font-black ${t2 > t1 ? 'text-primary scale-110' : 'text-slate-400'}`}>{t2}</span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
       </div>
-
     </div>
   );
 }
