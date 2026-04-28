@@ -66,7 +66,7 @@ export default function App() {
   const [selectedCategory, setSelectedCategory] = useState<LeagueCategory | null>(null);
   const [groups, setGroups] = useState<LeagueGroup[]>([]);
   const [selectedGroup, setSelectedGroup] = useState<LeagueGroup | null>(null);
-  const [activeTab, setActiveTab] = useState<'upcoming' | 'results' | 'standings'>('upcoming');
+  const [activeTab, setActiveTab] = useState<'upcoming' | 'results' | 'standings'>('standings');
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
 
@@ -76,10 +76,8 @@ export default function App() {
   const [standings, setStandings] = useState<LeagueStanding[]>([]);
 
   // Filters
-  const [phases, setPhases] = useState<number[]>([]);
-  const [rounds, setRounds] = useState<number[]>([]);
-  const [selectedPhase, setSelectedPhase] = useState<number | 'all'>('all');
-  const [selectedRound, setSelectedRound] = useState<number | 'all'>('all');
+  const [selectedDate, setSelectedDate] = useState<string | 'all'>('all');
+  const [groupingMode, setGroupingMode] = useState<'group' | 'date'>('date');
 
   useEffect(() => {
     loadInitialData();
@@ -101,18 +99,11 @@ export default function App() {
     setLoading(true);
 
     // Reset filters
-    setSelectedPhase('all');
-    setSelectedRound('all');
-    setSelectedGroup(null);
-
-    const [grps, filters] = await Promise.all([
-      dataService.getGroupsByCategory(cat.id),
-      dataService.getPhasesAndRounds(cat.id)
+    const [grps] = await Promise.all([
+      dataService.getGroupsByCategory(cat.id)
     ]);
 
     setGroups(grps);
-    setPhases(filters.phases);
-    setRounds(filters.rounds);
 
     if (grps.length > 0) {
       setSelectedGroup(grps[0]);
@@ -126,38 +117,17 @@ export default function App() {
     setSelectedGroup(group);
     await loadDetailData(
       selectedCategory?.id!,
-      group.id,
-      selectedPhase === 'all' ? undefined : selectedPhase,
-      selectedRound === 'all' ? undefined : selectedRound
+      group.id
     );
   };
 
-  const handleFilterPhase = async (phase: number | 'all') => {
-    setSelectedPhase(phase);
-    await loadDetailData(
-      selectedCategory?.id!,
-      selectedGroup?.id,
-      phase === 'all' ? undefined : phase,
-      selectedRound === 'all' ? undefined : selectedRound
-    );
-  };
 
-  const handleFilterRound = async (round: number | 'all') => {
-    setSelectedRound(round);
-    await loadDetailData(
-      selectedCategory?.id!,
-      selectedGroup?.id,
-      selectedPhase === 'all' ? undefined : selectedPhase,
-      round === 'all' ? undefined : round
-    );
-  };
-
-  const loadDetailData = async (catId: string, grpId?: string, phase?: number, round?: number) => {
+  const loadDetailData = async (catId: string, grpId?: string) => {
     setLoading(true);
     const [up, res, std] = await Promise.all([
-      dataService.getUpcomingMatches(catId, grpId, phase, round),
-      dataService.getResults(catId, grpId, phase, round),
-      dataService.getStandings(catId, grpId, phase)
+      dataService.getUpcomingMatches(catId, grpId),
+      dataService.getResults(catId, grpId),
+      dataService.getStandings(catId, grpId)
     ]);
     setUpcoming(up);
     setResults(res);
@@ -168,15 +138,12 @@ export default function App() {
   const resetSelection = () => {
     setSelectedCategory(null);
     setSelectedGroup(null);
-    setSelectedPhase('all');
-    setSelectedRound('all');
+    setSelectedDate('all');
     setGroups([]);
-    setPhases([]);
-    setRounds([]);
     setUpcoming([]);
     setResults([]);
     setStandings([]);
-    setActiveTab('upcoming');
+    setActiveTab('standings');
   };
 
   const filteredCategories = useMemo(() => {
@@ -184,6 +151,14 @@ export default function App() {
       c.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
   }, [categories, searchQuery]);
+
+  const availableDates = useMemo(() => {
+    const dates = new Set<string>();
+    [...upcoming, ...results].forEach(m => {
+      if (m.match_date) dates.add(m.match_date);
+    });
+    return Array.from(dates).sort();
+  }, [upcoming, results]);
 
   const isDetailView = selectedCategory && (groups.length === 0 || selectedGroup);
 
@@ -207,8 +182,6 @@ export default function App() {
         selectedGroup={selectedGroup}
         handleSelectCategory={handleSelectCategory}
         handleSelectGroup={handleSelectGroup}
-        handleFilterPhase={handleFilterPhase}
-        handleFilterRound={handleFilterRound}
         setSelectedGroup={setSelectedGroup}
         loadDetailData={loadDetailData}
         resetSelection={resetSelection}
@@ -218,10 +191,11 @@ export default function App() {
         results={results}
         standings={standings}
         groups={groups}
-        phases={phases}
-        rounds={rounds}
-        selectedPhase={selectedPhase}
-        selectedRound={selectedRound}
+        selectedDate={selectedDate}
+        setSelectedDate={setSelectedDate}
+        availableDates={availableDates}
+        groupingMode={groupingMode}
+        setGroupingMode={setGroupingMode}
         season={season}
         categories={categories}
       />
@@ -233,10 +207,11 @@ export default function App() {
 
 function AppContent({
   loading, isDetailView, selectedCategory, selectedGroup,
-  handleSelectCategory, handleSelectGroup, handleFilterPhase, handleFilterRound,
+  handleSelectCategory, handleSelectGroup,
   setSelectedGroup, loadDetailData, resetSelection,
   activeTab, setActiveTab, upcoming, results, standings,
-  groups, phases, rounds, selectedPhase, selectedRound, season, categories
+  groups, selectedDate, setSelectedDate, availableDates,
+  groupingMode, setGroupingMode, season, categories
 }: any) {
   return (
     <div className="h-full flex flex-col bg-white overflow-hidden">
@@ -266,8 +241,8 @@ function AppContent({
                   key={cat.id}
                   onClick={() => handleSelectCategory(cat)}
                   className={`whitespace-nowrap px-4 py-2 rounded-full text-[11px] font-black uppercase tracking-wider transition-all border ${isActive
-                      ? 'bg-primary text-white border-primary shadow-lg shadow-primary/20 scale-[1.02]'
-                      : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
+                    ? 'bg-primary text-white border-primary shadow-lg shadow-primary/20 scale-[1.02]'
+                    : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
                     }`}
                 >
                   {cat.name}
@@ -281,7 +256,7 @@ function AppContent({
         {selectedCategory && (
           <div className="bg-slate-50/50 pt-3 px-4 pb-1">
             {/* Group, Phase, Round Selectors */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-3">
               {groups.length > 0 && (
                 <div className="relative">
                   <select
@@ -289,12 +264,7 @@ function AppContent({
                     onChange={(e) => {
                       if (e.target.value === "all") {
                         setSelectedGroup(null);
-                        loadDetailData(
-                          selectedCategory.id,
-                          undefined,
-                          selectedPhase === 'all' ? undefined : selectedPhase,
-                          selectedRound === 'all' ? undefined : selectedRound
-                        );
+                        loadDetailData(selectedCategory.id, undefined);
                       } else {
                         const grp = groups.find((g: any) => g.id === e.target.value);
                         if (grp) handleSelectGroup(grp);
@@ -311,40 +281,51 @@ function AppContent({
                 </div>
               )}
 
-              {phases.length > 1 && (
+              {/* Date Selector (Dropdown) */}
+              {availableDates.length > 0 && (
                 <div className="relative">
                   <select
-                    value={selectedPhase}
-                    onChange={(e) => handleFilterPhase(e.target.value === 'all' ? 'all' : parseInt(e.target.value))}
+                    value={selectedDate}
+                    onChange={(e) => setSelectedDate(e.target.value)}
                     className="w-full pl-4 pr-10 py-2.5 bg-white border border-slate-200 rounded-xl text-[11px] font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none shadow-sm"
                     style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', backgroundSize: '14px' }}
                   >
-                    <option value="all">Todas las Fases</option>
-                    {phases.map(p => (
-                      <option key={p} value={p}>Fase {p}</option>
+                    <option value="all">Todas las Fechas</option>
+                    {availableDates.map(date => (
+                      <option key={date} value={date}>{formatDate(date)}</option>
                     ))}
                   </select>
                 </div>
               )}
 
-              {(activeTab === 'upcoming' || activeTab === 'results') && rounds.length > 0 && (
-                <div className="relative">
-                  <select
-                    value={selectedRound}
-                    onChange={(e) => handleFilterRound(e.target.value === 'all' ? 'all' : parseInt(e.target.value))}
-                    className="w-full pl-4 pr-10 py-2.5 bg-white border border-slate-200 rounded-xl text-[11px] font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none shadow-sm"
-                    style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', backgroundSize: '14px' }}
-                  >
-                    <option value="all">Todas las Jornadas</option>
-                    {rounds.map(r => (
-                      <option key={r} value={r}>Jornada {r}</option>
-                    ))}
-                  </select>
+              {/* Grouping Mode Toggle (Only for Matches) */}
+              {(activeTab === 'upcoming' || activeTab === 'results') && (
+                <div className="md:col-span-2 flex items-center justify-between bg-white/50 px-3 py-1.5 rounded-xl border border-slate-100">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Agrupar por:</span>
+                  <div className="flex gap-1">
+                    <button
+                      onClick={() => setGroupingMode('group')}
+                      className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${groupingMode === 'group' ? 'bg-primary text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                    >
+                      Grupo
+                    </button>
+                    <button
+                      onClick={() => setGroupingMode('date')}
+                      className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${groupingMode === 'date' ? 'bg-primary text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                    >
+                      Fecha
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
 
             <div className="flex bg-slate-200/50 p-1 rounded-xl mb-3">
+              <TabButton
+                active={activeTab === 'standings'}
+                onClick={() => setActiveTab('standings')}
+                label="Posiciones"
+              />
               <TabButton
                 active={activeTab === 'upcoming'}
                 onClick={() => setActiveTab('upcoming')}
@@ -354,11 +335,6 @@ function AppContent({
                 active={activeTab === 'results'}
                 onClick={() => setActiveTab('results')}
                 label="Resultados"
-              />
-              <TabButton
-                active={activeTab === 'standings'}
-                onClick={() => setActiveTab('standings')}
-                label="Posiciones"
               />
             </div>
           </div>
@@ -398,110 +374,149 @@ function AppContent({
                 className="space-y-4 pb-10"
               >
                 {activeTab === 'upcoming' && (
-                  <>
+                  <div className="space-y-4 pb-10">
                     {(() => {
-                      if (upcoming.length === 0) return <EmptyState label="Sin partidos próximos." />;
+                      const filteredUpcoming = selectedDate === 'all'
+                        ? upcoming
+                        : upcoming.filter(m => m.match_date === selectedDate);
 
-                      const sortedUpcoming = [...upcoming].sort((a, b) => {
-                        // 1. Scheduled status (Programado first)
-                        const isAScheduled = a.status.toLowerCase() === 'programado' || 
-                                           (a.status.toLowerCase() === 'pendiente' && (a.match_date || a.match_time || a.court || a.court_name || a.court_number));
-                        const isBScheduled = b.status.toLowerCase() === 'programado' || 
-                                           (b.status.toLowerCase() === 'pendiente' && (b.match_date || b.match_time || b.court || b.court_name || b.court_number));
+                      if (filteredUpcoming.length === 0) return <EmptyState label="Sin partidos próximos." />;
 
-                        if (isAScheduled && !isBScheduled) return -1;
-                        if (!isAScheduled && isBScheduled) return 1;
-
-                        // 2. Date/Time
+                      const sortedUpcoming = [...filteredUpcoming].sort((a, b) => {
                         if (a.match_date && b.match_date) {
                           if (a.match_date !== b.match_date) return a.match_date.localeCompare(b.match_date);
                           if (a.match_time && b.match_time) return a.match_time.localeCompare(b.match_time);
                         } else if (a.match_date) return -1;
                         else if (b.match_date) return 1;
-
-                        // 3. Group Name
-                        const nameA = a.group_name || '';
-                        const nameB = b.group_name || '';
-                        if (nameA !== nameB) return nameA.localeCompare(nameB);
-                        
-                        // 4. Phase
-                        if (a.phase !== b.phase) return (a.phase || 0) - (b.phase || 0);
-
-                        // 5. Round
                         return (a.round || 0) - (b.round || 0);
                       });
 
-                      const groupedIds = Array.from(new Set(sortedUpcoming.map(m => m.league_group_id || 'general')));
+                      if (groupingMode === 'group') {
+                        const groupedIds = Array.from(new Set(sortedUpcoming.map(m => m.league_group_id || 'general')));
+                        return (
+                          <div className="space-y-10">
+                            {groupedIds.map(groupId => {
+                              const groupMatches = sortedUpcoming.filter(m => (m.league_group_id || 'general') === groupId);
+                              const groupName = groupMatches[0]?.group_name || 'General';
+                              return (
+                                <div key={groupId} className="space-y-4">
+                                  <div className="flex items-center gap-3 px-2">
+                                    <div className="h-px flex-1 bg-slate-100" />
+                                    <h3 className="text-[12px] font-black text-primary uppercase tracking-[0.2em]">
+                                      {groupName}
+                                    </h3>
+                                    <div className="h-px flex-1 bg-slate-100" />
+                                  </div>
+                                  <div className="space-y-4">
+                                    {groupMatches.map(match => (
+                                      <MatchCard key={match.id} match={match} />
+                                    ))}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
+                      } else {
+                        // Agrupar por Fecha
+                        const dates = Array.from(new Set(sortedUpcoming.filter(m => m.match_date).map(m => m.match_date!)));
+                        const noDateMatches = sortedUpcoming.filter(m => !m.match_date);
 
-                      return (
-                        <div className="space-y-8">
-                          {groupedIds.map(groupId => {
-                            const groupMatches = sortedUpcoming.filter(m => (m.league_group_id || 'general') === groupId);
-                            const groupName = groupMatches[0]?.group_name || 'General';
-                            const phaseNum = groupMatches[0]?.phase;
-
-                            return (
-                              <div key={groupId} className="space-y-3">
-                                {groupedIds.length > 1 && (
-                                  <h3 className="text-[11px] font-black text-slate-500 uppercase tracking-wider px-2">
-                                    {groupName} {phaseNum ? `• Fase ${phaseNum}` : ''}
-                                  </h3>
-                                )}
+                        return (
+                          <div className="space-y-8">
+                            {dates.map(date => (
+                              <div key={date} className="space-y-4">
+                                <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest px-2 flex items-center gap-2">
+                                  <Calendar size={14} className="text-slate-300" />
+                                  {formatDate(date)}
+                                </h3>
                                 <div className="space-y-4">
-                                  {groupMatches.map(match => (
+                                  {sortedUpcoming.filter(m => m.match_date === date).map(match => (
                                     <MatchCard key={match.id} match={match} />
                                   ))}
                                 </div>
                               </div>
-                            );
-                          })}
-                        </div>
-                      );
+                            ))}
+                            {noDateMatches.length > 0 && (
+                              <div className="space-y-4">
+                                <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest px-2">Por Programar</h3>
+                                <div className="space-y-4">
+                                  {noDateMatches.map(match => (
+                                    <MatchCard key={match.id} match={match} />
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      }
                     })()}
-                  </>
+                  </div>
                 )}
 
                 {activeTab === 'results' && (
                   <>
                     {(() => {
-                      if (results.length === 0) return <EmptyState label="Sin resultados aún." />;
+                      const filteredResults = selectedDate === 'all'
+                        ? results
+                        : results.filter(m => m.match_date === selectedDate);
 
-                      const groupedIds = Array.from(new Set(
-                        [...results]
-                          .sort((a, b) => {
-                            const nameA = a.group_name || '';
-                            const nameB = b.group_name || '';
-                            if (nameA !== nameB) return nameA.localeCompare(nameB);
-                            if (a.phase !== b.phase) return (a.phase || 0) - (b.phase || 0);
-                            return (b.round || 0) - (a.round || 0); // Results usually sorted by round desc
-                          })
-                          .map(m => m.league_group_id || 'general')
-                      ));
+                      if (filteredResults.length === 0) return <EmptyState label="Sin resultados aún." />;
 
-                      return (
-                        <div className="space-y-8">
-                          {groupedIds.map(groupId => {
-                            const groupMatches = results.filter(m => (m.league_group_id || 'general') === groupId);
-                            const groupName = groupMatches[0]?.group_name || 'General';
-                            const phaseNum = groupMatches[0]?.phase;
+                      const sortedResults = [...filteredResults].sort((a, b) => {
+                        const nameA = a.group_name || '';
+                        const nameB = b.group_name || '';
+                        if (nameA !== nameB) return nameA.localeCompare(nameB);
+                        return (b.round || 0) - (a.round || 0);
+                      });
 
-                            return (
-                              <div key={groupId} className="space-y-3">
-                                {groupedIds.length > 1 && (
+                      if (groupingMode === 'group') {
+                        const groupedIds = Array.from(new Set(
+                          sortedResults.map(m => m.league_group_id || 'general')
+                        ));
+
+                        return (
+                          <div className="space-y-8">
+                            {groupedIds.map(groupId => {
+                              const groupMatches = sortedResults.filter(m => (m.league_group_id || 'general') === groupId);
+                              const groupName = groupMatches[0]?.group_name || 'General';
+
+                              return (
+                                <div key={groupId} className="space-y-3">
                                   <h3 className="text-[11px] font-black text-slate-500 uppercase tracking-wider px-2">
-                                    {groupName} {phaseNum ? `• Fase ${phaseNum}` : ''}
+                                    {groupName}
                                   </h3>
-                                )}
+                                  <div className="space-y-4">
+                                    {groupMatches.map(match => (
+                                      <MatchCard key={match.id} match={match} />
+                                    ))}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
+                      } else {
+                        // Agrupar por Fecha
+                        const dates = Array.from(new Set(sortedResults.filter(m => m.match_date).map(m => m.match_date!))).sort((a, b) => b.localeCompare(a));
+                        return (
+                          <div className="space-y-8">
+                            {dates.map(date => (
+                              <div key={date} className="space-y-4">
+                                <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest px-2 flex items-center gap-2">
+                                  <Calendar size={14} className="text-slate-300" />
+                                  {formatDate(date)}
+                                </h3>
                                 <div className="space-y-4">
-                                  {groupMatches.map(match => (
+                                  {sortedResults.filter(m => m.match_date === date).map(match => (
                                     <MatchCard key={match.id} match={match} />
                                   ))}
                                 </div>
                               </div>
-                            );
-                          })}
-                        </div>
-                      );
+                            ))}
+                          </div>
+                        );
+                      }
                     })()}
                   </>
                 )}
@@ -526,9 +541,9 @@ function AppContent({
                       return (
                         <div key={groupId} className="border border-slate-100 rounded-3xl overflow-hidden bg-white shadow-sm">
                           <div className="bg-slate-50/50 px-4 py-3 border-b border-slate-100 flex items-center justify-between">
-                            <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider">
-                              {groupName} {phaseNum ? `• Fase ${phaseNum}` : ''}
-                            </h3>
+                              <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider">
+                                {groupName}
+                              </h3>
                           </div>
                           <div className="overflow-x-auto no-scrollbar">
                             <div className="min-w-[450px]">
@@ -608,8 +623,8 @@ function TabButton({ active, onClick, label }: { active: boolean, onClick: () =>
     <button
       onClick={onClick}
       className={`flex-1 py-2 text-[11px] font-bold transition-all rounded-lg ${active
-          ? 'bg-white text-primary shadow-sm'
-          : 'text-slate-500 hover:text-slate-700'
+        ? 'bg-white text-primary shadow-sm'
+        : 'text-slate-500 hover:text-slate-700'
         }`}
     >
       {label}
@@ -625,7 +640,7 @@ function MatchCard({ match }: { match: LeagueMatch, key?: any }) {
   // Custom display status logic
   let displayStatus = match.status;
   const courtInfo = match.court_name || match.court || (match.court_number ? `Cancha ${match.court_number}` : null);
-  
+
   if (match.status.toLowerCase() === 'pendiente' && (match.match_date || match.match_time || courtInfo)) {
     displayStatus = 'programado';
   }
@@ -642,8 +657,8 @@ function MatchCard({ match }: { match: LeagueMatch, key?: any }) {
             )}
           </div>
           <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-lg ${isWalkover ? 'bg-rose-50 text-rose-600' :
-              isFinished ? 'bg-primary/5 text-primary' :
-                displayStatus.toLowerCase() === 'programado' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'
+            isFinished ? 'bg-primary/5 text-primary' :
+              displayStatus.toLowerCase() === 'programado' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'
             }`}>
             {displayStatus}
           </span>
@@ -665,7 +680,7 @@ function MatchCard({ match }: { match: LeagueMatch, key?: any }) {
                 </div>
               </div>
             )}
-            
+
             <div className="flex-1 bg-slate-50/80 p-3 rounded-2xl border border-slate-100 flex flex-col justify-center gap-1 group-hover:bg-primary/5 group-hover:border-primary/10 transition-colors">
               {match.match_date && (
                 <div className="flex items-center gap-3">
@@ -700,7 +715,7 @@ function MatchCard({ match }: { match: LeagueMatch, key?: any }) {
                 <Calendar size={12} className="text-slate-500" />
               </div>
               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-              Jugado el <span className="text-slate-600">{match.match_date ? formatDate(match.match_date) : 'Fecha pendiente'}</span>
+                Jugado el <span className="text-slate-600">{match.match_date ? formatDate(match.match_date) : 'Fecha pendiente'}</span>
               </span>
             </div>
             {courtInfo && (
