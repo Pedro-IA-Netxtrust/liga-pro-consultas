@@ -160,7 +160,7 @@ export const dataService = {
         group:league_groups!league_group_id(id, group_name, phase)
       `)
       .eq('league_category_id', categoryId)
-      .in('status', ['pendiente', 'programado'])
+      .in('status', ['pendiente'])
       .order('match_date', { ascending: true, nullsFirst: false })
       .order('match_time', { ascending: true, nullsFirst: false })
       .order('round', { ascending: true });
@@ -191,15 +191,32 @@ export const dataService = {
           team2:league_teams!team2_id(id, team_name, is_ghost, p1:clients!player1_id(first_name, last_name), p2:clients!player2_id(first_name, last_name))
         `)
         .eq('league_category_id', categoryId)
-        .eq('status', 'pendiente');
-      
+        .in('status', ['pendiente']);
+
       if (groupId) {
         retryQuery = retryQuery.eq('league_group_id', groupId);
       }
       
-      const { data: retryData } = await retryQuery;
+      const { data: retryData, error: retryError } = await retryQuery;
       
-      finalData = retryData;
+      if (retryError) {
+        // Final fallback: try category_id
+        let finalQuery = supabase
+          .from('league_matches')
+          .select(`
+            *,
+            team1:league_teams!team1_id(id, team_name, is_ghost, p1:clients!player1_id(first_name, last_name), p2:clients!player2_id(first_name, last_name)),
+            team2:league_teams!team2_id(id, team_name, is_ghost, p1:clients!player1_id(first_name, last_name), p2:clients!player2_id(first_name, last_name))
+          `)
+          .eq('category_id', categoryId)
+          .in('status', ['pendiente']);
+        
+        if (groupId) finalQuery = finalQuery.eq('group_id', groupId);
+        const { data: finalFallbackData } = await finalQuery;
+        finalData = finalFallbackData;
+      } else {
+        finalData = retryData;
+      }
     }
 
     const matches = (finalData || []).map((m: any) => ({
@@ -296,9 +313,26 @@ export const dataService = {
         retryQuery = retryQuery.eq('league_group_id', groupId);
       }
         
-      const { data: retryData } = await retryQuery;
+      const { data: retryData, error: retryError } = await retryQuery;
+      
+      if (retryError) {
+        // Fallback to category_id
+        let finalQuery = supabase
+          .from('league_matches')
+          .select(`
+            *,
+            team1:league_teams!team1_id(id, team_name, is_ghost, p1:clients!player1_id(first_name, last_name), p2:clients!player2_id(first_name, last_name)),
+            team2:league_teams!team2_id(id, team_name, is_ghost, p1:clients!player1_id(first_name, last_name), p2:clients!player2_id(first_name, last_name))
+          `)
+          .eq('category_id', categoryId)
+          .eq('status', 'jugado');
         
-      finalData = retryData;
+        if (groupId) finalQuery = finalQuery.eq('group_id', groupId);
+        const { data: finalFallbackData } = await finalQuery;
+        finalData = finalFallbackData;
+      } else {
+        finalData = retryData;
+      }
     }
 
     return (finalData || []).map((m: any) => ({
@@ -331,11 +365,20 @@ export const dataService = {
     if (phase) groupsQuery = groupsQuery.eq('phase', phase);
 
     const { data: groups, error: groupsError } = await groupsQuery;
+    let finalGroups = groups;
+
+    if (groupsError) {
+      const { data: altGroups } = await supabase
+        .from('league_groups')
+        .select('id, group_name, phase')
+        .eq('category_id', categoryId);
+      finalGroups = altGroups;
+    }
     
     // If we have groups, fetch teams via league_group_teams
     // If NO groups, fetch teams directly from league_teams
     let groupTeams: any[] = [];
-    const groupIds = (groups || []).map(g => g.id);
+    const groupIds = (finalGroups || []).map(g => g.id);
 
     if (groupIds.length > 0) {
       const { data: gtData } = await supabase
@@ -351,7 +394,7 @@ export const dataService = {
         .in('league_group_id', groupIds);
       groupTeams = gtData || [];
     } else {
-      const { data: tData } = await supabase
+      const { data: tData, error: tError } = await supabase
         .from('league_teams')
         .select(`
           id, team_name, is_ghost,
@@ -360,7 +403,20 @@ export const dataService = {
         `)
         .eq('league_category_id', categoryId);
       
-      groupTeams = (tData || []).map(t => ({
+      let finalTeams = tData;
+      if (tError) {
+        const { data: altTeams } = await supabase
+          .from('league_teams')
+          .select(`
+            id, team_name, is_ghost,
+            p1:clients!player1_id (first_name, last_name),
+            p2:clients!player2_id (first_name, last_name)
+          `)
+          .eq('category_id', categoryId);
+        finalTeams = altTeams;
+      }
+
+      groupTeams = (finalTeams || []).map(t => ({
         league_group_id: null,
         team: t
       }));
@@ -376,15 +432,24 @@ export const dataService = {
       standingsQuery = standingsQuery.eq('league_category_id', categoryId);
     }
     
-    const { data: standingsData } = await standingsQuery;
+    const { data: standingsData, error: sError } = await standingsQuery;
+    let finalStandingsData = standingsData;
+
+    if (sError && groupIds.length === 0) {
+      const { data: altStandingsData } = await supabase
+        .from('league_standings')
+        .select('*')
+        .eq('category_id', categoryId);
+      finalStandingsData = altStandingsData;
+    }
 
     // 4. Merge data: Every team in groupTeams should have a row
     const mergedStandings: any[] = groupTeams.map(gt => {
-      const standing = (standingsData || []).find(s => 
+      const standing = (finalStandingsData || []).find(s => 
         s.league_team_id === gt.team?.id && 
         (groupIds.length > 0 ? s.league_group_id === gt.league_group_id : true)
       );
-      const group = groups ? groups.find(g => g.id === gt.league_group_id) : undefined;
+      const group = finalGroups ? finalGroups.find(g => g.id === gt.league_group_id) : undefined;
       
       return {
         id: standing?.id || `${gt.league_group_id || 'general'}-${gt.team?.id}`,
