@@ -76,8 +76,7 @@ export default function App() {
   const [standings, setStandings] = useState<LeagueStanding[]>([]);
 
   // Filters
-  const [selectedDate, setSelectedDate] = useState<string | 'all'>('all');
-  const [groupingMode, setGroupingMode] = useState<'group' | 'date'>('date');
+  // No active filters other than category and group
 
   useEffect(() => {
     loadInitialData();
@@ -138,7 +137,7 @@ export default function App() {
   const resetSelection = () => {
     setSelectedCategory(null);
     setSelectedGroup(null);
-    setSelectedDate('all');
+    setSelectedGroup(null);
     setGroups([]);
     setUpcoming([]);
     setResults([]);
@@ -151,14 +150,6 @@ export default function App() {
       c.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
   }, [categories, searchQuery]);
-
-  const availableDates = useMemo(() => {
-    const dates = new Set<string>();
-    [...upcoming, ...results].forEach(m => {
-      if (m.match_date) dates.add(m.match_date);
-    });
-    return Array.from(dates).sort();
-  }, [upcoming, results]);
 
   const isDetailView = selectedCategory && (groups.length === 0 || selectedGroup);
 
@@ -191,11 +182,6 @@ export default function App() {
         results={results}
         standings={standings}
         groups={groups}
-        selectedDate={selectedDate}
-        setSelectedDate={setSelectedDate}
-        availableDates={availableDates}
-        groupingMode={groupingMode}
-        setGroupingMode={setGroupingMode}
         season={season}
         categories={categories}
       />
@@ -210,8 +196,7 @@ function AppContent({
   handleSelectCategory, handleSelectGroup,
   setSelectedGroup, loadDetailData, resetSelection,
   activeTab, setActiveTab, upcoming, results, standings,
-  groups, selectedDate, setSelectedDate, availableDates,
-  groupingMode, setGroupingMode, season, categories
+  groups, season, categories
 }: any) {
   return (
     <div className="h-full flex flex-col bg-white overflow-hidden">
@@ -256,7 +241,7 @@ function AppContent({
         {selectedCategory && (
           <div className="bg-slate-50/50 pt-3 px-4 pb-1">
             {/* Group, Phase, Round Selectors */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-3">
+            <div className="mb-3">
               {groups.length > 0 && (
                 <div className="relative">
                   <select
@@ -278,44 +263,6 @@ function AppContent({
                       <option key={grp.id} value={grp.id}>{grp.name}</option>
                     ))}
                   </select>
-                </div>
-              )}
-
-              {/* Date Selector (Dropdown) */}
-              {availableDates.length > 0 && (
-                <div className="relative">
-                  <select
-                    value={selectedDate}
-                    onChange={(e) => setSelectedDate(e.target.value)}
-                    className="w-full pl-4 pr-10 py-2.5 bg-white border border-slate-200 rounded-xl text-[11px] font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none shadow-sm"
-                    style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', backgroundSize: '14px' }}
-                  >
-                    <option value="all">Todas las Fechas</option>
-                    {availableDates.map(date => (
-                      <option key={date} value={date}>{formatDate(date)}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              {/* Grouping Mode Toggle (Only for Matches) */}
-              {(activeTab === 'upcoming' || activeTab === 'results') && (
-                <div className="md:col-span-2 flex items-center justify-between bg-white/50 px-3 py-1.5 rounded-xl border border-slate-100">
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Agrupar por:</span>
-                  <div className="flex gap-1">
-                    <button
-                      onClick={() => setGroupingMode('group')}
-                      className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${groupingMode === 'group' ? 'bg-primary text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-                    >
-                      Grupo
-                    </button>
-                    <button
-                      onClick={() => setGroupingMode('date')}
-                      className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${groupingMode === 'date' ? 'bg-primary text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-                    >
-                      Fecha
-                    </button>
-                  </div>
                 </div>
               )}
             </div>
@@ -376,9 +323,9 @@ function AppContent({
                 {activeTab === 'upcoming' && (
                   <div className="space-y-4 pb-10">
                     {(() => {
-                      const filteredUpcoming = selectedDate === 'all'
+                      const filteredUpcoming = !selectedGroup
                         ? upcoming
-                        : upcoming.filter(m => m.match_date === selectedDate);
+                        : upcoming.filter(m => m.league_group_id === selectedGroup.id);
 
                       if (filteredUpcoming.length === 0) return <EmptyState label="Sin partidos próximos." />;
 
@@ -391,7 +338,9 @@ function AppContent({
                         return (a.round || 0) - (b.round || 0);
                       });
 
-                      if (groupingMode === 'group') {
+                      const showByGroup = !selectedGroup;
+
+                      if (showByGroup) {
                         const groupedIds = Array.from(new Set(sortedUpcoming.map(m => m.league_group_id || 'general')));
                         return (
                           <div className="space-y-10">
@@ -418,7 +367,7 @@ function AppContent({
                           </div>
                         );
                       } else {
-                        // Agrupar por Fecha
+                        // Un solo grupo seleccionado, agrupar por Fecha para orden visual
                         const dates = Array.from(new Set(sortedUpcoming.filter(m => m.match_date).map(m => m.match_date!)));
                         const noDateMatches = sortedUpcoming.filter(m => !m.match_date);
 
@@ -457,9 +406,9 @@ function AppContent({
                 {activeTab === 'results' && (
                   <>
                     {(() => {
-                      const filteredResults = selectedDate === 'all'
+                      const filteredResults = !selectedGroup
                         ? results
-                        : results.filter(m => m.match_date === selectedDate);
+                        : results.filter(m => m.league_group_id === selectedGroup.id);
 
                       if (filteredResults.length === 0) return <EmptyState label="Sin resultados aún." />;
 
@@ -470,7 +419,9 @@ function AppContent({
                         return (b.round || 0) - (a.round || 0);
                       });
 
-                      if (groupingMode === 'group') {
+                      const showByGroup = !selectedGroup;
+
+                      if (showByGroup) {
                         const groupedIds = Array.from(new Set(
                           sortedResults.map(m => m.league_group_id || 'general')
                         ));
@@ -497,7 +448,7 @@ function AppContent({
                           </div>
                         );
                       } else {
-                        // Agrupar por Fecha
+                        // Un solo grupo, agrupar por Fecha (descendente para resultados)
                         const dates = Array.from(new Set(sortedResults.filter(m => m.match_date).map(m => m.match_date!))).sort((a, b) => b.localeCompare(a));
                         return (
                           <div className="space-y-8">
@@ -526,6 +477,7 @@ function AppContent({
                     {/* Sort standings by group name and phase */}
                     {Array.from(new Set(
                       standings
+                        .filter(s => !selectedGroup || s.group_id === selectedGroup.id)
                         .sort((a, b) => {
                           const nameA = a.group_name || '';
                           const nameB = b.group_name || '';

@@ -183,7 +183,7 @@ export const dataService = {
 
     if (error) {
       console.error('Supabase Error (getUpcomingMatches):', error.message);
-      const { data: retryData } = await supabase
+      let retryQuery = supabase
         .from('league_matches')
         .select(`
           *,
@@ -192,6 +192,12 @@ export const dataService = {
         `)
         .eq('league_category_id', categoryId)
         .eq('status', 'pendiente');
+      
+      if (groupId) {
+        retryQuery = retryQuery.eq('league_group_id', groupId);
+      }
+      
+      const { data: retryData } = await retryQuery;
       
       finalData = retryData;
     }
@@ -276,7 +282,7 @@ export const dataService = {
 
     if (error) {
       console.error('Supabase Error (getResults):', error.message);
-      const { data: retryData } = await supabase
+      let retryQuery = supabase
         .from('league_matches')
         .select(`
           *,
@@ -285,6 +291,12 @@ export const dataService = {
         `)
         .eq('league_category_id', categoryId)
         .eq('status', 'jugado');
+
+      if (groupId) {
+        retryQuery = retryQuery.eq('league_group_id', groupId);
+      }
+        
+      const { data: retryData } = await retryQuery;
         
       finalData = retryData;
     }
